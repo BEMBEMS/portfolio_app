@@ -34,10 +34,6 @@ class ThemeProvider extends ChangeNotifier {
   static final ThemeData _darkTheme = ThemeData(
     brightness: Brightness.dark,
     colorSchemeSeed: Colors.deepPurple,
-    colorScheme: const ColorScheme.dark(
-      primary: Colors.deepPurpleAccent,
-      surface: Color(0xFF121212),
-    ),
     useMaterial3: true,
   );
 }
