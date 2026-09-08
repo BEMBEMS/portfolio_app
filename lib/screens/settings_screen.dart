@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/glass_card.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -44,25 +45,29 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FadeIn(
                     delay: 1,
-                    child: Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                    child: GlassCard(
+                      padding: EdgeInsets.zero,
                       child: SwitchListTile(
-                        title: const Text('Dark Mode'),
+                        activeThumbColor: Colors.white,
+                        activeTrackColor: Colors.deepPurpleAccent,
+                        title: const Text(
+                          'Dark Mode',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         subtitle: Text(
                           themeProvider.isDarkMode
                               ? 'Dark theme active'
                               : 'Light theme active',
+                          style: const TextStyle(color: Colors.white70),
                         ),
                         secondary: Icon(
                           themeProvider.isDarkMode
                               ? Icons.dark_mode
                               : Icons.light_mode,
-                          color: themeProvider.isDarkMode
-                              ? Colors.deepPurple
-                              : Colors.amber,
+                          color: Colors.white,
                         ),
                         value: themeProvider.isDarkMode,
                         onChanged: (_) => themeProvider.toggleTheme(),
@@ -72,82 +77,80 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _FadeIn(
                     delay: 2,
-                    child: Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'User Profile',
-                              style: Theme.of(context).textTheme.titleMedium,
+                    child: GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'User Profile',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                            const SizedBox(height: 8),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              transitionBuilder: (child, anim) =>
-                                  FadeTransition(opacity: anim, child: child),
-                              child: Text(
-                                'Current name: ${nameProvider.userName}',
-                                key: ValueKey(nameProvider.userName),
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (child, anim) =>
+                                FadeTransition(opacity: anim, child: child),
+                            child: Text(
+                              'Current name: ${nameProvider.userName}',
+                              key: ValueKey(nameProvider.userName),
+                              style: const TextStyle(color: Colors.white),
                             ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _NameInput(
-                                    onSubmitted: (value) {
-                                      if (value.isNotEmpty) {
-                                        nameProvider.setUserName(value);
-                                      }
-                                    },
-                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _NameInput(
+                                  onSubmitted: (value) {
+                                    if (value.isNotEmpty) {
+                                      nameProvider.setUserName(value);
+                                    }
+                                  },
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   _FadeIn(
                     delay: 3,
-                    child: Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'About',
-                              style: Theme.of(context).textTheme.titleMedium,
+                    child: GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'About',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                            const Divider(),
-                            const ListTile(
-                              leading: Icon(Icons.flutter_dash,
-                                  color: Colors.blueAccent),
-                              title: Text('Flutter Portfolio App'),
-                              subtitle: Text('Version 1.0.0'),
-                            ),
-                            const ListTile(
-                              leading: Icon(Icons.code,
-                                  color: Colors.deepPurple),
-                              title: Text('State Management'),
-                              subtitle: Text('Provider Package'),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const Divider(color: Colors.white24),
+                          const ListTile(
+                            leading: Icon(Icons.flutter_dash,
+                                color: Colors.lightBlueAccent),
+                            title: Text('Flutter Portfolio App',
+                                style: TextStyle(color: Colors.white)),
+                            subtitle: Text('Version 1.0.0',
+                                style: TextStyle(color: Colors.white70)),
+                          ),
+                          const ListTile(
+                            leading: Icon(Icons.code,
+                                color: Colors.deepPurpleAccent),
+                            title: Text('State Management',
+                                style: TextStyle(color: Colors.white)),
+                            subtitle: Text('Provider Package',
+                                style: TextStyle(color: Colors.white70)),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -233,9 +236,21 @@ class _NameInputState extends State<_NameInput> {
         Expanded(
           child: TextField(
             controller: _controller,
-            decoration: const InputDecoration(
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
               hintText: 'Enter new name',
-              border: OutlineInputBorder(),
+              hintStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.12),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.white70),
+              ),
             ),
           ),
         ),
@@ -245,6 +260,12 @@ class _NameInputState extends State<_NameInput> {
             widget.onSubmitted(_controller.text);
             _controller.clear();
           },
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.deepPurpleAccent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
           child: const Text('Update'),
         ),
       ],

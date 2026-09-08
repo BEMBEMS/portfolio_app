@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/glass_card.dart';
 
 class Activity1Profile extends StatefulWidget {
   const Activity1Profile({super.key});
@@ -99,97 +100,122 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                   ),
                   const SizedBox(height: 32),
                   _FadeIn(
-                    child: Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Update Name',
-                              style: Theme.of(context).textTheme.titleMedium,
+                    child: GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Update Name',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _nameController,
-                                    decoration: const InputDecoration(
-                                      hintText: 'Enter your name',
-                                      border: OutlineInputBorder(),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _nameController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter your name',
+                                    hintStyle: const TextStyle(color: Colors.white54),
+                                    filled: true,
+                                    fillColor: Colors.white.withValues(alpha: 0.12),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Colors.white70,
+                                      ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                FilledButton(
-                                  onPressed: () {
-                                    if (_nameController.text.isNotEmpty) {
-                                      nameProvider.setUserName(
-                                        _nameController.text,
-                                      );
-                                      _nameController.clear();
-                                    }
-                                  },
-                                  child: const Text('Save'),
+                              ),
+                              const SizedBox(width: 12),
+                              FilledButton(
+                                onPressed: () {
+                                  if (_nameController.text.isNotEmpty) {
+                                    nameProvider.setUserName(
+                                      _nameController.text,
+                                    );
+                                    _nameController.clear();
+                                  }
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.deepPurpleAccent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                                child: const Text('Save'),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   _FadeIn(
                     delay: 1,
-                    child: Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: _IconBadge(
-                                icon: Icons.email,
-                                gradient: const LinearGradient(
-                                  colors: [Colors.blue, Colors.lightBlueAccent],
-                                ),
+                    child: GlassCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: _IconBadge(
+                              icon: Icons.email,
+                              gradient: const LinearGradient(
+                                colors: [Colors.blue, Colors.lightBlueAccent],
                               ),
-                              title: const Text('Email'),
-                              subtitle: const Text('student@example.com'),
                             ),
-                            const Divider(),
-                            ListTile(
-                              leading: _IconBadge(
-                                icon: Icons.school,
-                                gradient: const LinearGradient(
-                                  colors: [Colors.orange, Colors.deepOrange],
-                                ),
+                            title: const Text('Email',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: const Text('student@example.com',
+                                style: TextStyle(color: Colors.white70)),
+                          ),
+                          const Divider(color: Colors.white24, height: 1),
+                          ListTile(
+                            leading: _IconBadge(
+                              icon: Icons.school,
+                              gradient: const LinearGradient(
+                                colors: [Colors.orange, Colors.deepOrange],
                               ),
-                              title: const Text('Course'),
-                              subtitle: const Text('Flutter Development'),
                             ),
-                            const Divider(),
-                            ListTile(
-                              leading: _IconBadge(
-                                icon: Icons.star,
-                                gradient: const LinearGradient(
-                                  colors: [Colors.purple, Colors.pink],
-                                ),
+                            title: const Text('Course',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: const Text('Flutter Development',
+                                style: TextStyle(color: Colors.white70)),
+                          ),
+                          const Divider(color: Colors.white24, height: 1),
+                          ListTile(
+                            leading: _IconBadge(
+                              icon: Icons.star,
+                              gradient: const LinearGradient(
+                                colors: [Colors.purple, Colors.pink],
                               ),
-                              title: const Text('Activity'),
-                              subtitle: const Text('Portfolio & State Management'),
                             ),
-                          ],
-                        ),
+                            title: const Text('Activity',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: const Text(
+                                'Portfolio & State Management',
+                                style: TextStyle(color: Colors.white70)),
+                          ),
+                        ],
                       ),
                     ),
                   ),
