@@ -83,7 +83,7 @@ class HomeDashboard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: CustomCard(
-                            title: 'Activity 1',
+                            title: 'Student Information',
                             subtitle: 'Profile Screen',
                             icon: Icons.person,
                             onTap: () => Navigator.push(
@@ -104,7 +104,7 @@ class HomeDashboard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: CustomCard(
-                            title: 'Activity 2',
+                            title: 'Counter Module',
                             subtitle: 'Counter with State',
                             icon: Icons.calculate,
                             onTap: () => Navigator.push(

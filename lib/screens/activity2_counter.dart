@@ -27,7 +27,7 @@ class _Activity2CounterState extends State<Activity2Counter> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
-          'Activity 2 - Counter',
+          'Counter Module',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,

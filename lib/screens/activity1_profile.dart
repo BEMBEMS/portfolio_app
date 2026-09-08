@@ -27,7 +27,7 @@ class _Activity1ProfileState extends State<Activity1Profile> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
-          'Activity 1 - Profile',
+          'Student Information',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,

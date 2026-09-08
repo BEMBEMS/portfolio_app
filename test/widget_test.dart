@@ -21,7 +21,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Portfolio Dashboard'), findsOneWidget);
-    expect(find.text('Activity 1'), findsOneWidget);
-    expect(find.text('Activity 2'), findsOneWidget);
+    expect(find.text('Student Information'), findsOneWidget);
+    expect(find.text('Counter Module'), findsOneWidget);
   });
 }
