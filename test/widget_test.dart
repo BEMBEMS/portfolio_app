@@ -17,6 +17,9 @@ void main() {
       ),
     );
 
+    await tester.pump(const Duration(milliseconds: 2000));
+    await tester.pumpAndSettle();
+
     expect(find.text('Portfolio Dashboard'), findsOneWidget);
     expect(find.text('Activity 1'), findsOneWidget);
     expect(find.text('Activity 2'), findsOneWidget);
