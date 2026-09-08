@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/action_button.dart';
 
 class Activity1Profile extends StatefulWidget {
   const Activity1Profile({super.key});
@@ -140,7 +141,8 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              FilledButton(
+                              ActionButton(
+                                label: 'Save',
                                 onPressed: () {
                                   if (_nameController.text.isNotEmpty) {
                                     nameProvider.setUserName(
@@ -149,13 +151,6 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                                     _nameController.clear();
                                   }
                                 },
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.deepPurpleAccent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text('Save'),
                               ),
                             ],
                           ),

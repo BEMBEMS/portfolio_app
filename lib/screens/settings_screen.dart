@@ -4,6 +4,7 @@ import '../providers/theme_provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/action_button.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -255,18 +256,12 @@ class _NameInputState extends State<_NameInput> {
           ),
         ),
         const SizedBox(width: 12),
-        FilledButton(
+        ActionButton(
+          label: 'Update',
           onPressed: () {
             widget.onSubmitted(_controller.text);
             _controller.clear();
           },
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.deepPurpleAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text('Update'),
         ),
       ],
     );
