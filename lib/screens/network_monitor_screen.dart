@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:http/http.dart' as http;
+import '../providers/theme_provider.dart';
 import '../widgets/gradient_background.dart';
 
 class NetworkMonitorScreen extends StatefulWidget {
@@ -12,10 +15,19 @@ class NetworkMonitorScreen extends StatefulWidget {
 
 class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
     with SingleTickerProviderStateMixin {
+  static final Uri _photosUri =
+      Uri.parse('https://jsonplaceholder.typicode.com/photos');
+
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
   late final StreamSubscription<List<ConnectivityResult>> _subscription;
   ConnectivityResult _status = ConnectivityResult.none;
+
+  final List<_PendingRequest> _queuedRequests = [];
+  int _requestCounter = 0;
+  bool _isFetching = false;
+  bool _isRetrying = false;
+  String? _lastResult;
 
   @override
   void initState() {
@@ -31,6 +43,12 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
     _subscription = Connectivity().onConnectivityChanged.listen((results) {
       final result = results.isNotEmpty ? results.last : ConnectivityResult.none;
       if (mounted) setState(() => _status = result);
+      final connectionRestored =
+          _status == ConnectivityResult.none && result != ConnectivityResult.none;
+      if (mounted) setState(() => _status = result);
+      if (result != ConnectivityResult.none) {
+        _resumeQueuedRequests(showRecoverySnackbar: connectionRestored);
+      }
     });
 
     Connectivity().checkConnectivity().then((results) {
@@ -90,14 +108,108 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
     }
   }
 
+  Future<void> _performRequest() async {
+    await Future.wait([
+      http.get(_photosUri).timeout(const Duration(seconds: 10)),
+      Future.delayed(const Duration(seconds: 8)),
+    ]);
+  }
+
+  Future<void> _fetchDataset() async {
+    if (_isFetching) return;
+    final id = ++_requestCounter;
+    setState(() {
+      _isFetching = true;
+      _lastResult = null;
+    });
+
+    bool succeeded = false;
+    try {
+      await _performRequest();
+      succeeded = _status != ConnectivityResult.none;
+    } catch (_) {
+      succeeded = false;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isFetching = false;
+      if (succeeded) {
+        _lastResult =
+            'Dataset #$id fetched successfully \u2014 ${_photosUri.host} responded.';
+      } else {
+        _queuedRequests.add(_PendingRequest(id: id, timestamp: DateTime.now()));
+      }
+    });
+
+    if (succeeded) {
+      await _flushQueue();
+    }
+  }
+
+  Future<void> _resumeQueuedRequests({bool showRecoverySnackbar = false}) async {
+    if (_isRetrying || _queuedRequests.isEmpty) return;
+
+    final delivered = await _flushQueue();
+    if (delivered > 0 && showRecoverySnackbar && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Recovered $delivered queued request(s) \u2014 network restored.',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF4CAF50),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Future<int> _flushQueue() async {
+    if (_isRetrying || _queuedRequests.isEmpty) return 0;
+
+    _isRetrying = true;
+    if (mounted) setState(() {});
+
+    final pending = List<_PendingRequest>.from(_queuedRequests);
+    _queuedRequests.clear();
+
+    var delivered = 0;
+    for (final request in pending) {
+      try {
+        await _performRequest();
+        delivered++;
+      } catch (_) {
+        _queuedRequests.insert(0, request);
+        break;
+      }
+    }
+
+    _isRetrying = false;
+    if (!mounted) return delivered;
+    setState(() {
+      if (delivered > 0) {
+        _lastResult =
+            'Retried and delivered $delivered queued dataset request(s).';
+      }
+    });
+    return delivered;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Network Monitor',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: theme.textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -113,12 +225,32 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
                   const SizedBox(height: 24),
                   _FadeSlide(
                     delay: 0,
-                    child: _buildStatusCard(),
+                    child: _buildStatusCard(theme),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   _FadeSlide(
                     delay: 1,
+                    child: _buildFetchCard(theme),
+                  ),
+                  if (_queuedRequests.isNotEmpty || _isRetrying) ...[
+                    const SizedBox(height: 16),
+                    _FadeSlide(
+                      delay: 2,
+                      child: _buildQueuedBanner(theme),
+                    ),
+                  ],
+                  if (_lastResult != null) ...[
+                    const SizedBox(height: 16),
+                    _FadeSlide(
+                      delay: 3,
+                      child: _buildResultCard(theme),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _FadeSlide(
+                    delay: 4,
                     child: _buildInfoTile(
+                      theme: theme,
                       icon: Icons.info_outline,
                       title: 'Connection Details',
                       subtitle: _statusDescription,
@@ -126,21 +258,23 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 2,
+                    delay: 5,
                     child: _buildInfoTile(
+                      theme: theme,
                       icon: Icons.speed,
                       title: 'Connection Type',
                       subtitle: _status == ConnectivityResult.wifi
-                          ? 'Wi-Fi — Typically faster and more stable'
+                          ? 'Wi-Fi \u2014 Typically faster and more stable'
                           : _status == ConnectivityResult.mobile
-                              ? 'Cellular — Speed depends on signal and carrier'
+                              ? 'Cellular \u2014 Speed depends on signal and carrier'
                               : 'No active connection',
                     ),
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 3,
+                    delay: 6,
                     child: _buildInfoTile(
+                      theme: theme,
                       icon: Icons.update,
                       title: 'Live Monitoring',
                       subtitle: 'This screen updates automatically whenever your network status changes. No refresh needed.',
@@ -155,7 +289,7 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
     );
   }
 
-  Widget _buildStatusCard() {
+  Widget _buildStatusCard(ThemeProvider theme) {
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
@@ -168,13 +302,11 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withValues(alpha: 0.14),
-                Colors.white.withValues(alpha: 0.05),
+                theme.textColor.withValues(alpha: 0.14),
+                theme.textColor.withValues(alpha: 0.05),
               ],
             ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: theme.borderColor),
             boxShadow: [
               BoxShadow(
                 color: _statusColor.withValues(alpha: 0.25 * _pulseAnimation.value),
@@ -205,10 +337,10 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
               const SizedBox(height: 20),
               Text(
                 _statusLabel,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: theme.textColor,
                 ),
               ),
               const SizedBox(height: 8),
@@ -235,7 +367,254 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
     );
   }
 
+  Widget _buildFetchCard(ThemeProvider theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.textColor.withValues(alpha: 0.10),
+            theme.textColor.withValues(alpha: 0.03),
+          ],
+        ),
+        border: Border.all(color: theme.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Dataset Download',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: theme.textColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Downloads the full photo album to test long-running network requests.',
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.textColor.withValues(alpha: 0.7),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: Material(
+                color: Colors.deepPurpleAccent,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: _isFetching ? null : _fetchDataset,
+                  borderRadius: BorderRadius.circular(12),
+                  splashColor: Colors.white.withValues(alpha: 0.2),
+                  highlightColor: Colors.white.withValues(alpha: 0.1),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isFetching) ...[
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Text(
+                          _isFetching
+                              ? 'Fetching...'
+                              : 'Fetch Large Dataset',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (_isFetching) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.deepPurpleAccent,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Fetching from ${_photosUri.host}... this may take a few seconds.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.textColor.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQueuedBanner(ThemeProvider theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFFFB74D).withValues(alpha: 0.22),
+            const Color(0xFFF57C00).withValues(alpha: 0.10),
+          ],
+        ),
+        border: Border.all(
+          color: const Color(0xFFFFB74D).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFFFB74D).withValues(alpha: 0.25),
+            ),
+            child: const Icon(Icons.pending, color: Color(0xFFFFB74D)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Queued \u2014 waiting for connection',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFFFB74D),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _isRetrying
+                      ? 'Retrying queued request(s) now that a connection is available...'
+                      : '${_queuedRequests.length} dataset request(s) failed and are queued. They will retry automatically once the connection is restored.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.textColor.withValues(alpha: 0.85),
+                    height: 1.4,
+                  ),
+                ),
+                if (_queuedRequests.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ..._queuedRequests.map(
+                    (request) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        'Request #${request.id} \u00b7 failed at '
+                        '${_formatTime(request.timestamp)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.secondaryTextColor,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultCard(ThemeProvider theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF4CAF50).withValues(alpha: 0.18),
+            const Color(0xFF2E7D32).withValues(alpha: 0.08),
+          ],
+        ),
+        border: Border.all(
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.2),
+            ),
+            child: const Icon(Icons.check_circle, color: Color(0xFF4CAF50)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              _lastResult!,
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.textColor.withValues(alpha: 0.9),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    final s = time.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+
   Widget _buildInfoTile({
+    required ThemeProvider theme,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -249,13 +628,11 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: 0.10),
-            Colors.white.withValues(alpha: 0.03),
+            theme.textColor.withValues(alpha: 0.10),
+            theme.textColor.withValues(alpha: 0.03),
           ],
         ),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: theme.borderColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,9 +642,13 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
             height: 44,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: Colors.white.withValues(alpha: 0.1),
+              color: theme.textColor.withValues(alpha: 0.1),
             ),
-            child: Icon(icon, color: Colors.white70, size: 22),
+            child: Icon(
+              icon,
+              color: theme.secondaryTextColor,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -276,10 +657,10 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: theme.textColor,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -287,7 +668,7 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: theme.textColor.withValues(alpha: 0.7),
                     height: 1.4,
                   ),
                 ),
@@ -298,6 +679,13 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
       ),
     );
   }
+}
+
+class _PendingRequest {
+  final int id;
+  final DateTime timestamp;
+
+  const _PendingRequest({required this.id, required this.timestamp});
 }
 
 class _FadeSlide extends StatefulWidget {

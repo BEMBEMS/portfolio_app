@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 
 class CustomCard extends StatefulWidget {
   final String title;
@@ -23,6 +25,8 @@ class _CustomCardState extends State<CustomCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+
     return AnimatedScale(
       scale: _pressed ? 0.96 : 1.0,
       duration: const Duration(milliseconds: 150),
@@ -33,11 +37,11 @@ class _CustomCardState extends State<CustomCard> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.white.withValues(alpha: 0.12),
-              Colors.white.withValues(alpha: 0.04),
+              theme.textColor.withValues(alpha: 0.12),
+              theme.textColor.withValues(alpha: 0.04),
             ],
           ),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          border: Border.all(color: theme.borderColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -63,9 +67,9 @@ class _CustomCardState extends State<CustomCard> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: theme.textColor.withValues(alpha: 0.2),
                     ),
-                    child: Icon(widget.icon, size: 32, color: Colors.white),
+                    child: Icon(widget.icon, size: 32, color: theme.textColor),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -74,22 +78,24 @@ class _CustomCardState extends State<CustomCard> {
                       children: [
                         Text(
                           widget.title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: theme.textColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           widget.subtitle,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: theme.textColor.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: Colors.white),
+                  Icon(Icons.chevron_right, color: theme.textColor),
                 ],
               ),
             ),

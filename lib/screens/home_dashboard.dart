@@ -20,9 +20,12 @@ class HomeDashboard extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Portfolio Dashboard',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: themeProvider.textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -31,13 +34,13 @@ class HomeDashboard extends StatelessWidget {
           IconButton(
             icon: Icon(
               themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-              color: Colors.white,
+              color: themeProvider.textColor,
             ),
             onPressed: () => themeProvider.toggleTheme(),
             tooltip: 'Toggle Theme',
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
+            icon: Icon(Icons.settings, color: themeProvider.textColor),
             onPressed: () {
               Navigator.push(
                 context,
@@ -62,7 +65,7 @@ class HomeDashboard extends StatelessWidget {
                     child: Text(
                       'Welcome, ${nameProvider.userName}!',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                        color: themeProvider.textColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -73,7 +76,7 @@ class HomeDashboard extends StatelessWidget {
                     child: Text(
                       'Here are your laboratory activities',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.95),
+                        color: themeProvider.textColor.withValues(alpha: 0.95),
                       ),
                     ),
                   ),
