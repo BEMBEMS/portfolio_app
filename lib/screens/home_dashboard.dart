@@ -6,6 +6,7 @@ import '../widgets/custom_card.dart';
 import '../widgets/gradient_background.dart';
 import 'activity1_profile.dart';
 import 'activity2_counter.dart';
+import 'network_monitor_screen.dart';
 import 'settings_screen.dart';
 
 class HomeDashboard extends StatelessWidget {
@@ -121,6 +122,27 @@ class HomeDashboard extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FadeSlide(
                     delay: 4,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            title: 'Network Monitor',
+                            subtitle: 'Real-time connection status',
+                            icon: Icons.network_check,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NetworkMonitorScreen(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FadeSlide(
+                    delay: 5,
                     child: Row(
                       children: [
                         Expanded(
