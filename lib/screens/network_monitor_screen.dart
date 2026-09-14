@@ -24,6 +24,7 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
   ConnectivityResult _status = ConnectivityResult.none;
 
   final List<_PendingRequest> _queuedRequests = [];
+  final Set<OverlayEntry> _activeToasts = {};
   int _requestCounter = 0;
   bool _isFetching = false;
   bool _isRetrying = false;
@@ -42,10 +43,11 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
 
     _subscription = Connectivity().onConnectivityChanged.listen((results) {
       final result = results.isNotEmpty ? results.last : ConnectivityResult.none;
-      if (mounted) setState(() => _status = result);
+      final previous = _status;
       final connectionRestored =
-          _status == ConnectivityResult.none && result != ConnectivityResult.none;
+          previous == ConnectivityResult.none && result != ConnectivityResult.none;
       if (mounted) setState(() => _status = result);
+      _showConnectivityToasts(previous, result);
       if (result != ConnectivityResult.none) {
         _resumeQueuedRequests(showRecoverySnackbar: connectionRestored);
       }
@@ -59,9 +61,60 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
 
   @override
   void dispose() {
+    for (final entry in _activeToasts) {
+      entry.remove();
+    }
+    _activeToasts.clear();
     _subscription.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _showToast(String message, Color accentColor, IconData icon) {
+    if (!mounted) return;
+    final overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _ToastOverlay(
+        message: message,
+        accentColor: accentColor,
+        icon: icon,
+        onDismissed: () {
+          _activeToasts.remove(entry);
+          entry.remove();
+        },
+      ),
+    );
+    _activeToasts.add(entry);
+    overlay.insert(entry);
+  }
+
+  void _showConnectivityToasts(
+    ConnectivityResult previous,
+    ConnectivityResult current,
+  ) {
+    if (previous == current) return;
+    switch (current) {
+      case ConnectivityResult.wifi:
+        _showToast('Connected to Wi-Fi', const Color(0xFF4CAF50), Icons.wifi);
+        break;
+      case ConnectivityResult.mobile:
+        _showToast(
+          'Switched to Cellular',
+          const Color(0xFF2196F3),
+          Icons.signal_cellular_alt,
+        );
+        break;
+      case ConnectivityResult.none:
+        _showToast(
+          'Connection Lost - Offline',
+          const Color(0xFFE53935),
+          Icons.wifi_off,
+        );
+        break;
+      default:
+        break;
+    }
   }
 
   Color get _statusColor {
@@ -142,6 +195,14 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
       }
     });
 
+    if (!succeeded) {
+      _showToast(
+        'Request Queued - Waiting for Connection',
+        const Color(0xFFF57C00),
+        Icons.hourglass_top,
+      );
+    }
+
     if (succeeded) {
       await _flushQueue();
     }
@@ -194,6 +255,13 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
             'Retried and delivered $delivered queued dataset request(s).';
       }
     });
+    if (delivered > 0) {
+      _showToast(
+        'Queued Request Recovered Successfully',
+        const Color(0xFF4CAF50),
+        Icons.check_circle,
+      );
+    }
     return delivered;
   }
 
@@ -676,6 +744,121 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToastOverlay extends StatefulWidget {
+  final String message;
+  final Color accentColor;
+  final IconData icon;
+  final VoidCallback onDismissed;
+
+  const _ToastOverlay({
+    required this.message,
+    required this.accentColor,
+    required this.icon,
+    required this.onDismissed,
+  });
+
+  @override
+  State<_ToastOverlay> createState() => _ToastOverlayState();
+}
+
+class _ToastOverlayState extends State<_ToastOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+  Timer? _dismissTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, -0.35),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    _controller.forward();
+    _dismissTimer = Timer(const Duration(seconds: 5), _dismiss);
+  }
+
+  void _dismiss() {
+    if (!mounted) return;
+    _controller.reverse().then((_) {
+      if (mounted) widget.onDismissed();
+    });
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: FadeTransition(
+            opacity: _opacity,
+            child: SlideTransition(
+              position: _slide,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: theme.isDarkMode
+                      ? const Color(0xFF1C1C1C)
+                      : Colors.white,
+                  border: Border.all(color: theme.borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.icon, color: widget.accentColor, size: 20),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        widget.message,
+                        style: TextStyle(
+                          color: theme.textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
