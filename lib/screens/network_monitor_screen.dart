@@ -27,6 +27,7 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
 
   Timer? _pingTimer;
   bool _pingInFlight = false;
+  bool _pingTimedOut = false;
   bool _pingErrored = false;
   double? _lastPingSeconds;
 
@@ -182,11 +183,19 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
     _pingInFlight = true;
     final stopwatch = Stopwatch()..start();
     try {
-      await http.get(_pingUri).timeout(_pingTimeout);
+      await http.head(_pingUri).timeout(_pingTimeout);
       stopwatch.stop();
       if (!mounted) return;
       setState(() {
         _lastPingSeconds = stopwatch.elapsedMilliseconds / 1000.0;
+        _pingTimedOut = false;
+        _pingErrored = false;
+      });
+    } on TimeoutException {
+      stopwatch.stop();
+      if (!mounted) return;
+      setState(() {
+        _pingTimedOut = true;
         _pingErrored = false;
       });
     } catch (_) {
@@ -199,10 +208,14 @@ class _NetworkMonitorScreenState extends State<NetworkMonitorScreen>
   }
 
   String get _pingLabel {
-    if (_pingErrored) return 'Response Time (Ping): Unavailable';
+    if (_pingTimedOut) return 'Response Time: Timeout';
+    if (_pingErrored) return 'Response Time: Unavailable';
     final seconds = _lastPingSeconds;
-    if (seconds == null) return 'Response Time (Ping): Measuring\u2026';
-    return 'Response Time (Ping): ${seconds.toStringAsFixed(2)} seconds';
+    if (seconds == null) return 'Response Time: Measuring\u2026';
+    final milliseconds = (seconds * 1000).round();
+    return milliseconds >= 1000
+        ? 'Response Time: ${seconds.toStringAsFixed(2)} seconds ($milliseconds ms)'
+        : 'Response Time: $milliseconds ms';
   }
 
   @override
