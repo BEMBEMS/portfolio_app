@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -17,6 +19,8 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+
     return ClipRRect(
       borderRadius: borderRadius,
       child: Stack(
@@ -29,13 +33,11 @@ class GlassCard extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.12),
-                    Colors.white.withValues(alpha: 0.04),
+                    theme.textColor.withValues(alpha: 0.12),
+                    theme.textColor.withValues(alpha: 0.04),
                   ],
                 ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
+                border: Border.all(color: theme.borderColor),
                 borderRadius: borderRadius,
               ),
             ),

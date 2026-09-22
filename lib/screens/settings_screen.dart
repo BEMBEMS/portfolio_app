@@ -17,9 +17,12 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Settings',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: themeProvider.textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -33,11 +36,11 @@ class SettingsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _FadeIn(
+                  _FadeIn(
                     child: Text(
                       'Global Settings',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: themeProvider.textColor,
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
@@ -51,10 +54,10 @@ class SettingsScreen extends StatelessWidget {
                       child: SwitchListTile(
                         activeThumbColor: Colors.white,
                         activeTrackColor: Colors.deepPurpleAccent,
-                        title: const Text(
+                        title: Text(
                           'Dark Mode',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: themeProvider.textColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -62,13 +65,15 @@ class SettingsScreen extends StatelessWidget {
                           themeProvider.isDarkMode
                               ? 'Dark theme active'
                               : 'Light theme active',
-                          style: const TextStyle(color: Colors.white70),
+                          style: TextStyle(
+                            color: themeProvider.secondaryTextColor,
+                          ),
                         ),
                         secondary: Icon(
                           themeProvider.isDarkMode
                               ? Icons.dark_mode
                               : Icons.light_mode,
-                          color: Colors.white,
+                          color: themeProvider.textColor,
                         ),
                         value: themeProvider.isDarkMode,
                         onChanged: (_) => themeProvider.toggleTheme(),
@@ -82,10 +87,10 @@ class SettingsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'User Profile',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: themeProvider.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -98,7 +103,8 @@ class SettingsScreen extends StatelessWidget {
                             child: Text(
                               'Current name: ${nameProvider.userName}',
                               key: ValueKey(nameProvider.userName),
-                              style: const TextStyle(color: Colors.white),
+                              style:
+                                  TextStyle(color: themeProvider.textColor),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -126,30 +132,32 @@ class SettingsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'About',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: themeProvider.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
-                          const Divider(color: Colors.white24),
-                          const ListTile(
-                            leading: Icon(Icons.flutter_dash,
+                          Divider(color: themeProvider.dividerColor),
+                          ListTile(
+                            leading: const Icon(Icons.flutter_dash,
                                 color: Colors.lightBlueAccent),
                             title: Text('Flutter Portfolio App',
-                                style: TextStyle(color: Colors.white)),
+                                style: TextStyle(color: themeProvider.textColor)),
                             subtitle: Text('Version 1.0.0',
-                                style: TextStyle(color: Colors.white70)),
+                                style: TextStyle(
+                                    color: themeProvider.secondaryTextColor)),
                           ),
-                          const ListTile(
-                            leading: Icon(Icons.code,
+                          ListTile(
+                            leading: const Icon(Icons.code,
                                 color: Colors.deepPurpleAccent),
                             title: Text('State Management',
-                                style: TextStyle(color: Colors.white)),
+                                style: TextStyle(color: themeProvider.textColor)),
                             subtitle: Text('Provider Package',
-                                style: TextStyle(color: Colors.white70)),
+                                style: TextStyle(
+                                    color: themeProvider.secondaryTextColor)),
                           ),
                         ],
                       ),
@@ -232,25 +240,26 @@ class _NameInputState extends State<_NameInput> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+
     return Row(
       children: [
         Expanded(
           child: TextField(
             controller: _controller,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: theme.textColor),
             decoration: InputDecoration(
               hintText: 'Enter new name',
-              hintStyle: const TextStyle(color: Colors.white54),
+              hintStyle: TextStyle(color: theme.mutedTextColor),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.12),
+              fillColor: theme.textColor.withValues(alpha: 0.12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                borderSide: BorderSide(color: theme.borderColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.white70),
+                borderSide: BorderSide(color: theme.accentColor),
               ),
             ),
           ),

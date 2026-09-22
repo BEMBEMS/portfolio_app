@@ -4,8 +4,11 @@ import '../providers/theme_provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/gradient_background.dart';
+
 import 'activity1_profile.dart';
 import 'activity2_counter.dart';
+import 'network_diagnostic_dashboard.dart';
+import 'network_monitor_screen.dart';
 import 'settings_screen.dart';
 
 class HomeDashboard extends StatelessWidget {
@@ -19,9 +22,12 @@ class HomeDashboard extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Portfolio Dashboard',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: themeProvider.textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -30,13 +36,13 @@ class HomeDashboard extends StatelessWidget {
           IconButton(
             icon: Icon(
               themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-              color: Colors.white,
+              color: themeProvider.textColor,
             ),
             onPressed: () => themeProvider.toggleTheme(),
             tooltip: 'Toggle Theme',
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
+            icon: Icon(Icons.settings, color: themeProvider.textColor),
             onPressed: () {
               Navigator.push(
                 context,
@@ -61,24 +67,14 @@ class HomeDashboard extends StatelessWidget {
                     child: Text(
                       'Welcome, ${nameProvider.userName}!',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                        color: themeProvider.textColor,
                         fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  _FadeSlide(
-                    delay: 1,
-                    child: Text(
-                      'Here are your laboratory activities',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.95),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   _FadeSlide(
-                    delay: 2,
+                    delay: 3,
                     child: Row(
                       children: [
                         Expanded(
@@ -99,7 +95,7 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 3,
+                    delay: 4,
                     child: Row(
                       children: [
                         Expanded(
@@ -120,7 +116,44 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 4,
+                    delay: 5,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            title: 'Network Monitor',
+                            subtitle: 'Real-time connection status',
+                            icon: Icons.network_check,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NetworkMonitorScreen(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FadeSlide(
+                    delay: 6,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            title: 'Network Diagnostics',
+                            subtitle: 'Ping & speed test with health tier',
+                            icon: Icons.speed,
+                            onTap: () => _openDashboard(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FadeSlide(
+                    delay: 7,
                     child: Row(
                       children: [
                         Expanded(
@@ -147,9 +180,16 @@ class HomeDashboard extends StatelessWidget {
       ),
     );
   }
+
+  static void _openDashboard(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NetworkDiagnosticDashboard()),
+    );
+  }
 }
 
-class _FadeSlide extends StatefulWidget {
+      class _FadeSlide extends StatefulWidget {
   final Widget child;
   final int delay;
 

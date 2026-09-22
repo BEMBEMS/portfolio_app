@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    hide Provider, ChangeNotifierProvider;
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/name_provider.dart';
@@ -6,12 +8,14 @@ import 'screens/home_dashboard.dart';
 
 void main() {
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => NameProvider()),
-      ],
-      child: const PortfolioApp(),
+    ProviderScope(
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => NameProvider()),
+        ],
+        child: const PortfolioApp(),
+      ),
     ),
   );
 }
