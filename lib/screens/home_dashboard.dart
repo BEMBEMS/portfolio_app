@@ -4,8 +4,10 @@ import '../providers/theme_provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/gradient_background.dart';
+
 import 'activity1_profile.dart';
 import 'activity2_counter.dart';
+import 'network_diagnostic_dashboard.dart';
 import 'network_monitor_screen.dart';
 import 'settings_screen.dart';
 
@@ -70,19 +72,9 @@ class HomeDashboard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  _FadeSlide(
-                    delay: 1,
-                    child: Text(
-                      'Here are your laboratory activities',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: themeProvider.textColor.withValues(alpha: 0.95),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 24),
                   _FadeSlide(
-                    delay: 2,
+                    delay: 3,
                     child: Row(
                       children: [
                         Expanded(
@@ -103,7 +95,7 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 3,
+                    delay: 4,
                     child: Row(
                       children: [
                         Expanded(
@@ -124,7 +116,7 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 4,
+                    delay: 5,
                     child: Row(
                       children: [
                         Expanded(
@@ -145,7 +137,23 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 5,
+                    delay: 6,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            title: 'Network Diagnostics',
+                            subtitle: 'Ping & speed test with health tier',
+                            icon: Icons.speed,
+                            onTap: () => _openDashboard(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FadeSlide(
+                    delay: 7,
                     child: Row(
                       children: [
                         Expanded(
@@ -172,9 +180,16 @@ class HomeDashboard extends StatelessWidget {
       ),
     );
   }
+
+  static void _openDashboard(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NetworkDiagnosticDashboard()),
+    );
+  }
 }
 
-class _FadeSlide extends StatefulWidget {
+      class _FadeSlide extends StatefulWidget {
   final Widget child;
   final int delay;
 
