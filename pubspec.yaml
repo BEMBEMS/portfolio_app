@@ -17,6 +17,8 @@ dependencies:
   http: ^1.2.2
   web: ^1.1.1
   flutter_riverpod: 2.6.1
+  nearby_connections: ^4.3.0
+  permission_handler: ^13.0.2
 
 dev_dependencies:
   flutter_test:
