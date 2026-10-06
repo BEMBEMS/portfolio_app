@@ -9,6 +9,7 @@ import 'activity1_profile.dart';
 import 'activity2_counter.dart';
 import 'network_diagnostic_dashboard.dart';
 import 'network_monitor_screen.dart';
+import 'mesh_chat_screen.dart';
 import 'settings_screen.dart';
 
 class HomeDashboard extends StatelessWidget {
@@ -154,6 +155,27 @@ class HomeDashboard extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FadeSlide(
                     delay: 7,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            title: 'Local Mesh Chat',
+                            subtitle: 'Offline peer-to-peer Bluetooth chat',
+                            icon: Icons.hub_rounded,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MeshChatScreen(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FadeSlide(
+                    delay: 8,
                     child: Row(
                       children: [
                         Expanded(

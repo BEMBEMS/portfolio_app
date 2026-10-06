@@ -26,6 +26,19 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Local Mesh Chat uses Bluetooth to discover and exchange messages with nearby devices without an internet connection.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Local Mesh Chat uses Bluetooth to discover and exchange messages with nearby devices without an internet connection.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Local Mesh Chat connects directly to nearby phones over the local network so your messages stay offline.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_meshchat._tcp</string>
+		<string>_meshchat._udp</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location is used only to find nearby devices while you are using the app.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

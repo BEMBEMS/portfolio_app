@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/name_provider.dart';
+import 'providers/mesh_provider.dart';
 import 'screens/home_dashboard.dart';
 
 void main() {
@@ -13,6 +14,7 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
           ChangeNotifierProvider(create: (_) => NameProvider()),
+          ChangeNotifierProvider(create: (_) => MeshProvider()),
         ],
         child: const PortfolioApp(),
       ),
