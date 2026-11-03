@@ -7,6 +7,7 @@ import '../widgets/gradient_background.dart';
 
 import 'activity1_profile.dart';
 import 'activity2_counter.dart';
+import 'activity5_geofence_map.dart';
 import 'network_diagnostic_dashboard.dart';
 import 'network_monitor_screen.dart';
 import 'settings_screen.dart';
@@ -66,10 +67,11 @@ class HomeDashboard extends StatelessWidget {
                     delay: 0,
                     child: Text(
                       'Welcome, ${nameProvider.userName}!',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: themeProvider.textColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: themeProvider.textColor,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -153,6 +155,28 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
+                    delay: 8,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            title: 'Geofence Map',
+                            subtitle:
+                                'Real OSM map of Del Monte with hidden markers',
+                            icon: Icons.my_location,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const Activity5GeofenceMap(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FadeSlide(
                     delay: 7,
                     child: Row(
                       children: [
@@ -189,7 +213,7 @@ class HomeDashboard extends StatelessWidget {
   }
 }
 
-      class _FadeSlide extends StatefulWidget {
+class _FadeSlide extends StatefulWidget {
   final Widget child;
   final int delay;
 
@@ -216,9 +240,7 @@ class _FadeSlideState extends State<_FadeSlide>
     _offset = Tween<Offset>(
       begin: const Offset(0, 0.2),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
     Future.delayed(Duration(milliseconds: widget.delay * 200), () {
       if (mounted) _controller.forward();
     });
