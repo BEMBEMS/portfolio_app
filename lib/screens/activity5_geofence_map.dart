@@ -41,6 +41,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
   bool _hasEvaluated = false;
   bool _addingLocation = false;
   LatLng _userLocation = _defaultLocation;
+  LatLng _initialCenter = DelMonteMapConfig.center;
   Timer? _walkTimer;
   bool _simulating = false;
   bool _suppressMapTap = false;
@@ -70,6 +71,11 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     }
     if (!_hasEvaluated) {
       _hasEvaluated = true;
+      final savedLocation = _geofence?.lastPinnedLocation;
+      if (savedLocation != null) {
+        _userLocation = savedLocation.position;
+        _initialCenter = savedLocation.position;
+      }
       _evaluateGeofences(initial: true);
     }
   }
@@ -151,15 +157,12 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
 
   void _reset() {
     _walkTimer?.cancel();
-    _mapController.move(
-      DelMonteMapConfig.center,
-      DelMonteMapConfig.defaultZoom,
-    );
+    _mapController.move(_initialCenter, DelMonteMapConfig.defaultZoom);
     setState(() {
       _simulating = false;
       _walkTarget = null;
       _waypointIndex = 0;
-      _userLocation = _defaultLocation;
+      _userLocation = _initialCenter;
       _insideIds.clear();
       _events.clear();
       _evaluateGeofences(initial: true);
@@ -276,7 +279,9 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     if (result == null || !mounted) return;
 
     if (existing != null) {
-      if (provider.updateLocation(existing.id, result)) {
+      final updated = await provider.updateLocation(existing.id, result);
+      if (!mounted) return;
+      if (updated) {
         _mapController.move(result.position, _mapController.camera.zoom);
         _showSnack('${result.name} updated.');
       }
@@ -288,7 +293,9 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
       return;
     }
 
-    if (provider.addLocation(result)) {
+    final added = await provider.addLocation(result);
+    if (!mounted) return;
+    if (added) {
       _mapController.move(result.position, _mapController.camera.zoom);
       _showSnack('${result.name} added.');
     }
@@ -369,7 +376,9 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
         .firstWhere((location) => location.id == replacedId)
         .name;
 
-    if (provider.replaceLocation(replacedId, newLocation)) {
+    final replaced = await provider.replaceLocation(replacedId, newLocation);
+    if (!mounted) return;
+    if (replaced) {
       _mapController.move(newLocation.position, _mapController.camera.zoom);
       _showSnack('${newLocation.name} replaced $replacedName.');
     }
@@ -405,7 +414,9 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     if (confirmed != true || !mounted) return;
 
     final provider = Provider.of<GeofenceProvider>(context, listen: false);
-    if (provider.removeLocation(landmark.id)) {
+    final removed = await provider.removeLocation(landmark.id);
+    if (!mounted) return;
+    if (removed) {
       _insideIds.remove(landmark.id);
       _showSnack('${landmark.name} deleted.');
     }
@@ -486,6 +497,30 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                     ),
                   ],
                 ),
+                if (landmark.address.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.place_outlined,
+                        size: 16,
+                        color: theme.mutedTextColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          landmark.address,
+                          style: TextStyle(
+                            color: theme.mutedTextColor,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 14),
                 Text(
                   landmark.description,
@@ -500,6 +535,13 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    if (landmark.isPinned)
+                      _DetailChip(
+                        theme: theme,
+                        icon: Icons.push_pin_rounded,
+                        label: 'Pinned',
+                        color: theme.accentColor,
+                      ),
                     _DetailChip(
                       theme: theme,
                       icon: Icons.radio_button_checked,
@@ -797,7 +839,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
-                initialCenter: DelMonteMapConfig.center,
+                initialCenter: _initialCenter,
                 initialZoom: DelMonteMapConfig.defaultZoom,
                 minZoom: DelMonteMapConfig.minZoom,
                 maxZoom: DelMonteMapConfig.maxZoom,
@@ -1019,6 +1061,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     final nearestDistance = nearest == null
         ? null
         : distanceInMeters(_userLocation, nearest.position);
+    final lastPinned = _geofence?.lastPinnedLocation;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1176,6 +1219,34 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
               ),
             ],
           ),
+          if (lastPinned != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.push_pin_outlined,
+                  size: 16,
+                  color: theme.mutedTextColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Last pinned: ${lastPinned.address} '
+                    '(${lastPinned.latitude.toStringAsFixed(5)}, '
+                    '${lastPinned.longitude.toStringAsFixed(5)})',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.mutedTextColor,
+                      fontSize: 11.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1402,6 +1473,14 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                                     ),
                                   ),
                                 ),
+                                if (landmark.isPinned) ...[
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.push_pin_rounded,
+                                    size: 13,
+                                    color: theme.accentColor,
+                                  ),
+                                ],
                                 if (inside) ...[
                                   const SizedBox(width: 6),
                                   Container(
@@ -1510,6 +1589,7 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
+  late final TextEditingController _addressController;
   late final TextEditingController _categoryController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _latitudeController;
@@ -1523,6 +1603,7 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
     super.initState();
     final existing = widget.existing;
     _nameController = TextEditingController(text: existing?.name ?? '');
+    _addressController = TextEditingController(text: existing?.address ?? '');
     _categoryController = TextEditingController(
       text: existing?.category ?? 'Custom',
     );
@@ -1544,6 +1625,7 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
   @override
   void dispose() {
     _nameController.dispose();
+    _addressController.dispose();
     _categoryController.dispose();
     _descriptionController.dispose();
     _latitudeController.dispose();
@@ -1576,9 +1658,12 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
 
     final existing = widget.existing;
     final category = _categoryController.text.trim();
+    final name = _nameController.text.trim();
+    final address = _addressController.text.trim();
     final location = CustomLandmark(
       id: existing?.id ?? 'location_${DateTime.now().microsecondsSinceEpoch}',
-      name: _nameController.text.trim(),
+      name: name,
+      address: address.isEmpty ? name : address,
       category: category.isEmpty ? 'Custom' : category,
       description: _descriptionController.text.trim(),
       position: LatLng(
@@ -1695,6 +1780,17 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
                     textInputAction: TextInputAction.next,
                     decoration: _decoration('Location name'),
                     validator: _validateRequired,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _addressController,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: _decoration(
+                      'Address',
+                      helperText:
+                          'Saved so this location can be restored later',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

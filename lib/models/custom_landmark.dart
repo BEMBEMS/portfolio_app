@@ -25,43 +25,53 @@ final Map<int, IconData> geofenceIconCatalog = {
 class CustomLandmark {
   final String id;
   final String name;
+  final String address;
   final String category;
   final String description;
   final LatLng position;
   final double radiusMeters;
   final IconData icon;
   final Color color;
+  final bool isPinned;
 
   const CustomLandmark({
     required this.id,
     required this.name,
+    this.address = '',
     required this.category,
     required this.description,
     required this.position,
     required this.radiusMeters,
     required this.icon,
     required this.color,
+    this.isPinned = false,
   });
+
+  String get displayAddress => address.trim().isEmpty ? name : address;
 
   CustomLandmark copyWith({
     String? id,
     String? name,
+    String? address,
     String? category,
     String? description,
     LatLng? position,
     double? radiusMeters,
     IconData? icon,
     Color? color,
+    bool? isPinned,
   }) {
     return CustomLandmark(
       id: id ?? this.id,
       name: name ?? this.name,
+      address: address ?? this.address,
       category: category ?? this.category,
       description: description ?? this.description,
       position: position ?? this.position,
       radiusMeters: radiusMeters ?? this.radiusMeters,
       icon: icon ?? this.icon,
       color: color ?? this.color,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 
@@ -69,6 +79,7 @@ class CustomLandmark {
     return {
       'id': id,
       'name': name,
+      'address': address,
       'category': category,
       'description': description,
       'latitude': position.latitude,
@@ -76,6 +87,7 @@ class CustomLandmark {
       'radiusMeters': radiusMeters,
       'iconCodePoint': icon.codePoint,
       'color': color.toARGB32(),
+      'isPinned': isPinned,
     };
   }
 
@@ -84,12 +96,14 @@ class CustomLandmark {
     final iconCodePoint =
         (json['iconCodePoint'] as num?)?.toInt() ??
         Icons.place_rounded.codePoint;
+    final name = json['name'] as String? ?? 'Unnamed Location';
 
     return CustomLandmark(
       id:
           json['id'] as String? ??
           'location_${DateTime.now().microsecondsSinceEpoch}',
-      name: json['name'] as String? ?? 'Unnamed Location',
+      name: name,
+      address: json['address'] as String? ?? '',
       category: json['category'] as String? ?? 'Custom',
       description: json['description'] as String? ?? '',
       position: LatLng(
@@ -99,6 +113,31 @@ class CustomLandmark {
       radiusMeters: (json['radiusMeters'] as num?)?.toDouble() ?? 50,
       icon: geofenceIconCatalog[iconCodePoint] ?? Icons.place_rounded,
       color: Color(colorValue),
+      isPinned: json['isPinned'] as bool? ?? false,
+    );
+  }
+}
+
+/// The most recently pinned or edited geofence location. Persisted separately
+/// so the app can restore the user's last location on startup.
+class PinnedGeofenceLocation {
+  final double latitude;
+  final double longitude;
+  final String address;
+
+  const PinnedGeofenceLocation({
+    required this.latitude,
+    required this.longitude,
+    required this.address,
+  });
+
+  LatLng get position => LatLng(latitude, longitude);
+
+  factory PinnedGeofenceLocation.fromLandmark(CustomLandmark landmark) {
+    return PinnedGeofenceLocation(
+      latitude: landmark.position.latitude,
+      longitude: landmark.position.longitude,
+      address: landmark.displayAddress,
     );
   }
 }
@@ -113,62 +152,68 @@ class DelMonteMapConfig {
 
 const List<CustomLandmark> defaultGeofenceLandmarks = [
   CustomLandmark(
-    id: 'residence',
-    name: "Ciloy's Residence",
-    category: 'Residence',
+    id: 'ciloys_home',
+    name: "Ciloy's Home",
+    address: 'Bah-bah - Talacogon Road, Purok 5, Del Monte, Talacogon',
+    category: 'Home',
     description:
-        'A private family home along a quiet lane in Del Monte. This spot is '
-        'not pinned on public map services.',
-    position: LatLng(8.49070, 125.84285),
-    radiusMeters: 55,
+        "Ciloy's family home on the right side of Bah-bah - Talacogon Road, "
+        'north-east of Purok 5.',
+    position: LatLng(8.49275, 125.84400),
+    radiusMeters: 60,
     icon: Icons.home_rounded,
     color: Color(0xFFE67E22),
   ),
   CustomLandmark(
-    id: 'boardwalk',
-    name: 'Hidden Riverbank Boardwalk',
-    category: 'Nature',
+    id: 'ivys_home',
+    name: "Ivy's Home",
+    address: 'Bah-bah - Talacogon Road, Purok 5, Del Monte, Talacogon',
+    category: 'Home',
     description:
-        'A short wooden walkway along the Agusan River bank that locals use '
-        'early in the morning. Not marked on public maps.',
-    position: LatLng(8.48770, 125.84500),
-    radiusMeters: 70,
-    icon: Icons.forest_rounded,
-    color: Color(0xFF2E7D32),
+        "Ivy's family home on the left side of Bah-bah - Talacogon Road, "
+        'north-west of Purok 5.',
+    position: LatLng(8.49275, 125.84310),
+    radiusMeters: 60,
+    icon: Icons.home_rounded,
+    color: Color(0xFF8E24AA),
   ),
   CustomLandmark(
-    id: 'sunrise_hill',
-    name: 'Del Monte Sunrise Hill',
-    category: 'Viewpoint',
+    id: 'tindahans_mga_chuy',
+    name: 'Tindahans mga Chuy',
+    address: 'Pisaan-Del Monte Road, Purok 5, Del Monte, Talacogon',
+    category: 'Store',
     description:
-        'A grassy ridge overlooking the fields of Del Monte. A favorite secret '
-        'spot for watching the sun rise over Agusan del Sur.',
-    position: LatLng(8.49330, 125.84560),
-    radiusMeters: 80,
-    icon: Icons.landscape_rounded,
+        'A neighborhood store on Pisaan-Del Monte Road near the '
+        'Bah-bah - Talacogon Road junction. Pinned by default.',
+    position: LatLng(8.49015, 125.84213),
+    radiusMeters: 60,
+    icon: Icons.restaurant_rounded,
+    color: Color(0xFF43A047),
+    isPinned: true,
+  ),
+  CustomLandmark(
+    id: 'kalye58_tamabayanan',
+    name: 'Kalye58 Tamabayanan',
+    address: 'Pisaan-Del Monte Road (CENRO), Purok 5, Del Monte, Talacogon',
+    category: 'Tambayanan',
+    description:
+        'A tambayanan on Pisaan-Del Monte Road, right at the Community '
+        'Environment and Natural Resources Office (CENRO).',
+    position: LatLng(8.4892661, 125.8437722),
+    radiusMeters: 40,
+    icon: Icons.star_rounded,
     color: Color(0xFFF9A825),
   ),
   CustomLandmark(
-    id: 'banyan',
-    name: 'Old Banyan Tree',
-    category: 'Heritage',
+    id: 'malihao_spot',
+    name: 'Malihao Spot',
+    address: 'Malihao Road, Purok 8, Del Monte, Talacogon',
+    category: 'Water Spot',
     description:
-        'A century-old balete tree where neighbors gather in the afternoon '
-        'shade. Its exact location is only known to locals.',
-    position: LatLng(8.48840, 125.84070),
-    radiusMeters: 50,
-    icon: Icons.park_rounded,
-    color: Color(0xFF6D4C41),
-  ),
-  CustomLandmark(
-    id: 'lagoon',
-    name: 'Secret Fish Pond',
-    category: 'Hidden Spot',
-    description:
-        'A small fish pond tucked behind the rice fields. Reachable on foot '
-        'through a narrow trail at the edge of the barangay.',
-    position: LatLng(8.48630, 125.84600),
-    radiusMeters: 65,
+        'A water spot south of Purok 8 along the road extending from '
+        'Pisaan-Del Monte Road.',
+    position: LatLng(8.48680, 125.84766),
+    radiusMeters: 60,
     icon: Icons.water_rounded,
     color: Color(0xFF0277BD),
   ),
