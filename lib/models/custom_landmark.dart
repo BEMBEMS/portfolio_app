@@ -1,6 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+const int maxGeofenceLocations = 5;
+
+final Map<int, IconData> geofenceIconCatalog = {
+  Icons.place_rounded.codePoint: Icons.place_rounded,
+  Icons.home_rounded.codePoint: Icons.home_rounded,
+  Icons.work_rounded.codePoint: Icons.work_rounded,
+  Icons.school_rounded.codePoint: Icons.school_rounded,
+  Icons.forest_rounded.codePoint: Icons.forest_rounded,
+  Icons.park_rounded.codePoint: Icons.park_rounded,
+  Icons.water_rounded.codePoint: Icons.water_rounded,
+  Icons.landscape_rounded.codePoint: Icons.landscape_rounded,
+  Icons.sports_basketball_rounded.codePoint: Icons.sports_basketball_rounded,
+  Icons.shopping_bag_rounded.codePoint: Icons.shopping_bag_rounded,
+  Icons.local_hospital_rounded.codePoint: Icons.local_hospital_rounded,
+  Icons.restaurant_rounded.codePoint: Icons.restaurant_rounded,
+  Icons.star_rounded.codePoint: Icons.star_rounded,
+  Icons.favorite_rounded.codePoint: Icons.favorite_rounded,
+  Icons.flag_rounded.codePoint: Icons.flag_rounded,
+  Icons.bolt_rounded.codePoint: Icons.bolt_rounded,
+};
+
 class CustomLandmark {
   final String id;
   final String name;
@@ -21,6 +42,65 @@ class CustomLandmark {
     required this.icon,
     required this.color,
   });
+
+  CustomLandmark copyWith({
+    String? id,
+    String? name,
+    String? category,
+    String? description,
+    LatLng? position,
+    double? radiusMeters,
+    IconData? icon,
+    Color? color,
+  }) {
+    return CustomLandmark(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      position: position ?? this.position,
+      radiusMeters: radiusMeters ?? this.radiusMeters,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'category': category,
+      'description': description,
+      'latitude': position.latitude,
+      'longitude': position.longitude,
+      'radiusMeters': radiusMeters,
+      'iconCodePoint': icon.codePoint,
+      'color': color.toARGB32(),
+    };
+  }
+
+  factory CustomLandmark.fromJson(Map<String, dynamic> json) {
+    final colorValue = (json['color'] as num?)?.toInt() ?? 0xFFF57C00;
+    final iconCodePoint =
+        (json['iconCodePoint'] as num?)?.toInt() ??
+        Icons.place_rounded.codePoint;
+
+    return CustomLandmark(
+      id:
+          json['id'] as String? ??
+          'location_${DateTime.now().microsecondsSinceEpoch}',
+      name: json['name'] as String? ?? 'Unnamed Location',
+      category: json['category'] as String? ?? 'Custom',
+      description: json['description'] as String? ?? '',
+      position: LatLng(
+        (json['latitude'] as num?)?.toDouble() ?? 0,
+        (json['longitude'] as num?)?.toDouble() ?? 0,
+      ),
+      radiusMeters: (json['radiusMeters'] as num?)?.toDouble() ?? 50,
+      icon: geofenceIconCatalog[iconCodePoint] ?? Icons.place_rounded,
+      color: Color(colorValue),
+    );
+  }
 }
 
 class DelMonteMapConfig {
@@ -31,10 +111,10 @@ class DelMonteMapConfig {
   static const double maxZoom = 19;
 }
 
-const List<CustomLandmark> delMonteLandmarks = [
+const List<CustomLandmark> defaultGeofenceLandmarks = [
   CustomLandmark(
     id: 'residence',
-    name: "Carlo's Residence",
+    name: "Ciloy's Residence",
     category: 'Residence',
     description:
         'A private family home along a quiet lane in Del Monte. This spot is '
@@ -91,18 +171,6 @@ const List<CustomLandmark> delMonteLandmarks = [
     radiusMeters: 65,
     icon: Icons.water_rounded,
     color: Color(0xFF0277BD),
-  ),
-  CustomLandmark(
-    id: 'court',
-    name: 'Barangay Basketball Court',
-    category: 'Community',
-    description:
-        'The neighborhood court and covered hall where weekend games and '
-        'community events happen.',
-    position: LatLng(8.49180, 125.84140),
-    radiusMeters: 60,
-    icon: Icons.sports_basketball_rounded,
-    color: Color(0xFF8E24AA),
   ),
 ];
 

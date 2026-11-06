@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 
 import '../models/custom_landmark.dart';
+import '../providers/geofence_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/gradient_background.dart';
 
@@ -36,12 +37,18 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
   final Set<String> _insideIds = <String>{};
   final List<_GeofenceEvent> _events = <_GeofenceEvent>[];
 
+  GeofenceProvider? _geofence;
+  bool _hasEvaluated = false;
+  bool _addingLocation = false;
   LatLng _userLocation = _defaultLocation;
   Timer? _walkTimer;
   bool _simulating = false;
   bool _suppressMapTap = false;
   int _waypointIndex = 0;
   LatLng? _walkTarget;
+
+  List<CustomLandmark> get _landmarks =>
+      _geofence?.locations ?? const <CustomLandmark>[];
 
   @override
   void initState() {
@@ -50,19 +57,43 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
-    _evaluateGeofences(initial: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = Provider.of<GeofenceProvider>(context, listen: false);
+    if (!identical(_geofence, provider)) {
+      _geofence?.removeListener(_handleLocationsChanged);
+      _geofence = provider;
+      _geofence!.addListener(_handleLocationsChanged);
+    }
+    if (!_hasEvaluated) {
+      _hasEvaluated = true;
+      _evaluateGeofences(initial: true);
+    }
   }
 
   @override
   void dispose() {
+    _geofence?.removeListener(_handleLocationsChanged);
     _walkTimer?.cancel();
     _pulseController.dispose();
     _mapController.dispose();
     super.dispose();
   }
 
+  void _handleLocationsChanged() {
+    if (!mounted) return;
+    setState(() {
+      final ids = _landmarks.map((landmark) => landmark.id).toSet();
+      _insideIds.removeWhere((id) => !ids.contains(id));
+      _evaluateGeofences();
+    });
+  }
+
   void _evaluateGeofences({bool initial = false}) {
-    for (final landmark in delMonteLandmarks) {
+    for (final landmark in _landmarks) {
       final inside =
           distanceInMeters(_userLocation, landmark.position) <=
           landmark.radiusMeters;
@@ -104,6 +135,10 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
 
   void _handleMapTap(TapPosition tapPosition, LatLng point) {
     if (_suppressMapTap) return;
+    if (_addingLocation) {
+      _openLocationForm(position: point);
+      return;
+    }
     _setUserLocation(point);
   }
 
@@ -185,10 +220,12 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     });
   }
 
-  CustomLandmark _nearestLandmark() {
-    var nearest = delMonteLandmarks.first;
+  CustomLandmark? _nearestLandmark() {
+    final locations = _landmarks;
+    if (locations.isEmpty) return null;
+    var nearest = locations.first;
     var bestDistance = distanceInMeters(_userLocation, nearest.position);
-    for (final landmark in delMonteLandmarks.skip(1)) {
+    for (final landmark in locations.skip(1)) {
       final distance = distanceInMeters(_userLocation, landmark.position);
       if (distance < bestDistance) {
         nearest = landmark;
@@ -200,6 +237,178 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
 
   void _recenterOnUser() {
     _mapController.move(_userLocation, _mapController.camera.zoom);
+  }
+
+  void _startAddLocation() {
+    setState(() => _addingLocation = true);
+    _showSnack('Tap the map to place your new location.');
+  }
+
+  void _cancelAddLocation() {
+    setState(() => _addingLocation = false);
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openLocationForm({
+    CustomLandmark? existing,
+    LatLng? position,
+  }) async {
+    final provider = Provider.of<GeofenceProvider>(context, listen: false);
+    setState(() => _addingLocation = false);
+
+    final result = await showModalBottomSheet<CustomLandmark>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LocationFormSheet(
+        existing: existing,
+        initialPosition: position ?? existing?.position ?? _userLocation,
+        limitReached: existing == null && provider.isFull,
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    if (existing != null) {
+      if (provider.updateLocation(existing.id, result)) {
+        _mapController.move(result.position, _mapController.camera.zoom);
+        _showSnack('${result.name} updated.');
+      }
+      return;
+    }
+
+    if (provider.isFull) {
+      await _promptReplaceLocation(result);
+      return;
+    }
+
+    if (provider.addLocation(result)) {
+      _mapController.move(result.position, _mapController.camera.zoom);
+      _showSnack('${result.name} added.');
+    }
+  }
+
+  Future<void> _promptReplaceLocation(CustomLandmark newLocation) async {
+    final provider = Provider.of<GeofenceProvider>(context, listen: false);
+    if (provider.locations.isEmpty) return;
+
+    final theme = Provider.of<ThemeProvider>(context, listen: false);
+    var selectedId = provider.locations.first.id;
+
+    final replacedId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Location limit reached'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'You can keep up to ${provider.limit} locations. '
+                      'Choose one to replace with "${newLocation.name}".',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: theme.secondaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final location in provider.locations)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          selectedId == location.id
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: selectedId == location.id
+                              ? theme.accentColor
+                              : theme.mutedTextColor,
+                        ),
+                        title: Text(
+                          location.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(location.category),
+                        onTap: () =>
+                            setDialogState(() => selectedId = location.id),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(selectedId),
+                  child: const Text('Replace'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (replacedId == null || !mounted) return;
+
+    final replacedName = provider.locations
+        .firstWhere((location) => location.id == replacedId)
+        .name;
+
+    if (provider.replaceLocation(replacedId, newLocation)) {
+      _mapController.move(newLocation.position, _mapController.camera.zoom);
+      _showSnack('${newLocation.name} replaced $replacedName.');
+    }
+  }
+
+  Future<void> _confirmDeleteLandmark(CustomLandmark landmark) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete location?'),
+          content: Text(
+            'Remove "${landmark.name}" from your geofences? '
+            'This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFE53935),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final provider = Provider.of<GeofenceProvider>(context, listen: false);
+    if (provider.removeLocation(landmark.id)) {
+      _insideIds.remove(landmark.id);
+      _showSnack('${landmark.name} deleted.');
+    }
   }
 
   void _showLandmarkDetails(CustomLandmark landmark) {
@@ -333,6 +542,55 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                     label: const Text('Move my location here'),
                   ),
                 ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.textColor,
+                          side: BorderSide(color: theme.borderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _openLocationForm(existing: landmark);
+                          });
+                        },
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: const Text('Edit'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE53935),
+                          side: const BorderSide(color: Color(0xFFE53935)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _confirmDeleteLandmark(landmark);
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Delete'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -344,13 +602,22 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context);
+    final geofence = Provider.of<GeofenceProvider>(context);
+    final landmarks = geofence.locations;
     final nearest = _nearestLandmark();
-    final active = delMonteLandmarks
+    final active = landmarks
         .where((landmark) => _insideIds.contains(landmark.id))
         .toList();
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _startAddLocation,
+        backgroundColor: theme.accentColor,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_location_alt_rounded),
+        label: const Text('Add Location'),
+      ),
       appBar: AppBar(
         title: Text(
           'Geofence Map',
@@ -363,7 +630,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
       body: GradientBackground(
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -377,17 +644,63 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                 const SizedBox(height: 4),
                 Text(
                   'Del Monte, Talacogon, Agusan del Sur \u2022 '
-                  '${delMonteLandmarks.length} hidden spots',
+                  '${landmarks.length} of ${geofence.limit} locations',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: theme.secondaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 16),
                 _buildMapCard(theme),
+                if (_addingLocation) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.accentColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: theme.accentColor.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.add_location_alt_rounded,
+                          size: 18,
+                          color: theme.accentColor,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Tap the map to place your new location.',
+                            style: TextStyle(
+                              color: theme.textColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _cancelAddLocation,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 30),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(
-                  'Powered by OpenStreetMap \u2022 Tap the real map to move '
-                  'your tracker, or run the walk simulation.',
+                  'Powered by OpenStreetMap \u2022 Tap the map to move your '
+                  'tracker, or run the walk simulation. Use Add Location to '
+                  'create up to ${geofence.limit} geofences.',
                   style: TextStyle(
                     color: theme.mutedTextColor,
                     fontSize: 11.5,
@@ -467,7 +780,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${delMonteLandmarks.length} PINS',
+                    '${_landmarks.length} / $maxGeofenceLocations',
                     style: TextStyle(
                       color: theme.accentColor,
                       fontSize: 10,
@@ -505,7 +818,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                 CircleLayer(
                   optimizeRadiusInMeters: true,
                   circles: [
-                    for (final landmark in delMonteLandmarks)
+                    for (final landmark in _landmarks)
                       CircleMarker(
                         point: landmark.position,
                         radius: landmark.radiusMeters,
@@ -524,7 +837,7 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                 ),
                 MarkerLayer(
                   markers: [
-                    for (final landmark in delMonteLandmarks)
+                    for (final landmark in _landmarks)
                       Marker(
                         point: landmark.position,
                         width: 44,
@@ -576,8 +889,10 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                   top: 12,
                   child: _buildMapChip(
                     theme,
-                    Icons.touch_app_rounded,
-                    'Tap map to move',
+                    _addingLocation
+                        ? Icons.add_location_alt_rounded
+                        : Icons.touch_app_rounded,
+                    _addingLocation ? 'Tap map to place' : 'Tap map to move',
                   ),
                 ),
                 Positioned(
@@ -695,13 +1010,15 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
   Widget _buildStatusCard(
     ThemeProvider theme,
     List<CustomLandmark> active,
-    CustomLandmark nearest,
+    CustomLandmark? nearest,
   ) {
     final insideCount = active.length;
     final statusColor = insideCount > 0
         ? const Color(0xFF43A047)
         : theme.accentColor;
-    final nearestDistance = distanceInMeters(_userLocation, nearest.position);
+    final nearestDistance = nearest == null
+        ? null
+        : distanceInMeters(_userLocation, nearest.position);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -753,6 +1070,8 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                     Text(
                       insideCount > 0
                           ? 'Inside ${active.map((item) => item.name).join(', ')}'
+                          : _landmarks.isEmpty
+                          ? 'No locations configured'
                           : 'Outside all geofences',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -789,36 +1108,58 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
           const SizedBox(height: 14),
           Divider(color: theme.dividerColor, height: 1),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                Icons.near_me_rounded,
-                size: 16,
-                color: theme.mutedTextColor,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Nearest: ${nearest.name}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme.secondaryTextColor,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
+          if (nearest == null)
+            Row(
+              children: [
+                Icon(
+                  Icons.add_location_alt_outlined,
+                  size: 16,
+                  color: theme.mutedTextColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No locations yet. Add one to start geofencing.',
+                    style: TextStyle(
+                      color: theme.secondaryTextColor,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                '${nearestDistance.round()} m',
-                style: TextStyle(
-                  color: theme.textColor,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+              ],
+            )
+          else
+            Row(
+              children: [
+                Icon(
+                  Icons.near_me_rounded,
+                  size: 16,
+                  color: theme.mutedTextColor,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Nearest: ${nearest.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.secondaryTextColor,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${nearestDistance!.round()} m',
+                  style: TextStyle(
+                    color: theme.textColor,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -926,14 +1267,62 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     );
   }
 
+  Widget _buildEmptyLocations(ThemeProvider theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.textColor.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.borderColor),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.add_location_alt_outlined,
+            size: 30,
+            color: theme.mutedTextColor,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No locations yet',
+            style: TextStyle(
+              color: theme.textColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Create up to $maxGeofenceLocations custom geofences and keep '
+            'track of the places that matter.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: theme.mutedTextColor,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _startAddLocation,
+            icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+            label: const Text('Add Location'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLandmarkList(ThemeProvider theme) {
+    final landmarks = _landmarks;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'Custom Markers',
+              'My Locations',
               style: TextStyle(
                 color: theme.textColor,
                 fontWeight: FontWeight.bold,
@@ -942,13 +1331,23 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
             ),
             const Spacer(),
             Text(
-              '${delMonteLandmarks.length} spots',
+              '${landmarks.length} / $maxGeofenceLocations',
               style: TextStyle(color: theme.mutedTextColor, fontSize: 12),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: _startAddLocation,
+              tooltip: 'Add Location',
+              iconSize: 20,
+              visualDensity: VisualDensity.compact,
+              color: theme.accentColor,
+              icon: const Icon(Icons.add_location_alt_rounded),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        ...delMonteLandmarks.map((landmark) {
+        if (landmarks.isEmpty) _buildEmptyLocations(theme),
+        ...landmarks.map((landmark) {
           final inside = _insideIds.contains(landmark.id);
           final distance = distanceInMeters(_userLocation, landmark.position);
           return Padding(
@@ -1070,6 +1469,397 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
           );
         }),
       ],
+    );
+  }
+}
+
+class _LocationFormSheet extends StatefulWidget {
+  final CustomLandmark? existing;
+  final LatLng initialPosition;
+  final bool limitReached;
+
+  const _LocationFormSheet({
+    required this.existing,
+    required this.initialPosition,
+    required this.limitReached,
+  });
+
+  @override
+  State<_LocationFormSheet> createState() => _LocationFormSheetState();
+}
+
+class _LocationFormSheetState extends State<_LocationFormSheet> {
+  static final List<IconData> _iconOptions = geofenceIconCatalog.values.toList(
+    growable: false,
+  );
+
+  static const List<Color> _colorOptions = [
+    Color(0xFFE67E22),
+    Color(0xFF2E7D32),
+    Color(0xFFF9A825),
+    Color(0xFF6D4C41),
+    Color(0xFF0277BD),
+    Color(0xFF8E24AA),
+    Color(0xFFE53935),
+    Color(0xFF00897B),
+    Color(0xFF3949AB),
+    Color(0xFFD81B60),
+    Color(0xFF43A047),
+    Color(0xFFF4511E),
+  ];
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _categoryController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _latitudeController;
+  late final TextEditingController _longitudeController;
+  late double _radius;
+  late IconData _icon;
+  late Color _color;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _nameController = TextEditingController(text: existing?.name ?? '');
+    _categoryController = TextEditingController(
+      text: existing?.category ?? 'Custom',
+    );
+    _descriptionController = TextEditingController(
+      text: existing?.description ?? '',
+    );
+    final position = existing?.position ?? widget.initialPosition;
+    _latitudeController = TextEditingController(
+      text: position.latitude.toStringAsFixed(5),
+    );
+    _longitudeController = TextEditingController(
+      text: position.longitude.toStringAsFixed(5),
+    );
+    _radius = (existing?.radiusMeters ?? 60).clamp(20, 300).toDouble();
+    _icon = existing?.icon ?? _iconOptions.first;
+    _color = existing?.color ?? _colorOptions.first;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _categoryController.dispose();
+    _descriptionController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
+    super.dispose();
+  }
+
+  String? _validateRequired(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Required';
+    return null;
+  }
+
+  String? _validateLatitude(String? value) {
+    final parsed = double.tryParse(value?.trim() ?? '');
+    if (parsed == null) return 'Enter a number';
+    if (parsed < -90 || parsed > 90) return 'Must be -90 to 90';
+    return null;
+  }
+
+  String? _validateLongitude(String? value) {
+    final parsed = double.tryParse(value?.trim() ?? '');
+    if (parsed == null) return 'Enter a number';
+    if (parsed < -180 || parsed > 180) return 'Must be -180 to 180';
+    return null;
+  }
+
+  void _submit() {
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
+
+    final existing = widget.existing;
+    final category = _categoryController.text.trim();
+    final location = CustomLandmark(
+      id: existing?.id ?? 'location_${DateTime.now().microsecondsSinceEpoch}',
+      name: _nameController.text.trim(),
+      category: category.isEmpty ? 'Custom' : category,
+      description: _descriptionController.text.trim(),
+      position: LatLng(
+        double.parse(_latitudeController.text.trim()),
+        double.parse(_longitudeController.text.trim()),
+      ),
+      radiusMeters: _radius,
+      icon: _icon,
+      color: _color,
+    );
+
+    Navigator.of(context).pop(location);
+  }
+
+  InputDecoration _decoration(String label, {String? helperText}) {
+    return InputDecoration(
+      labelText: label,
+      helperText: helperText,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      isDense: true,
+    );
+  }
+
+  Widget _sectionLabel(String text, ThemeProvider theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: theme.textColor,
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+    final editing = widget.existing != null;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.isDarkMode ? const Color(0xFF161616) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          editing ? 'Edit Location' : 'New Location',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: theme.textColor,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: theme.mutedTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!editing) ...[
+                    Text(
+                      widget.limitReached
+                          ? 'You already have $maxGeofenceLocations '
+                                'locations. Saving will ask you to replace one.'
+                          : 'Customize the pin, then save it to this map.',
+                      style: TextStyle(
+                        color: widget.limitReached
+                            ? theme.accentColor
+                            : theme.mutedTextColor,
+                        fontSize: 12,
+                        height: 1.4,
+                        fontWeight: widget.limitReached
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  TextFormField(
+                    controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: _decoration('Location name'),
+                    validator: _validateRequired,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _categoryController,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: _decoration('Category'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _descriptionController,
+                    minLines: 2,
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: _decoration('Description'),
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionLabel('Coordinates', theme),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _latitudeController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                          decoration: _decoration('Latitude'),
+                          validator: _validateLatitude,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _longitudeController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                            signed: true,
+                          ),
+                          decoration: _decoration('Longitude'),
+                          validator: _validateLongitude,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _sectionLabel('Geofence radius', theme),
+                      const Spacer(),
+                      Text(
+                        '${_radius.round()} m',
+                        style: TextStyle(
+                          color: theme.accentColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _radius,
+                    min: 20,
+                    max: 300,
+                    divisions: 28,
+                    label: '${_radius.round()} m',
+                    onChanged: (value) => setState(() => _radius = value),
+                  ),
+                  const SizedBox(height: 8),
+                  _sectionLabel('Icon', theme),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final icon in _iconOptions)
+                        GestureDetector(
+                          onTap: () => setState(() => _icon = icon),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: _icon == icon
+                                  ? _color
+                                  : theme.textColor.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _icon == icon
+                                    ? _color
+                                    : theme.borderColor,
+                              ),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 20,
+                              color: _icon == icon
+                                  ? Colors.white
+                                  : theme.secondaryTextColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionLabel('Color', theme),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (final color in _colorOptions)
+                        GestureDetector(
+                          onTap: () => setState(() => _color = color),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: color,
+                              border: Border.all(
+                                color: _color == color
+                                    ? theme.textColor
+                                    : Colors.transparent,
+                                width: 2.5,
+                              ),
+                            ),
+                            child: _color == color
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    size: 18,
+                                    color: Colors.white,
+                                  )
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _submit,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.accentColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: Icon(
+                        editing
+                            ? Icons.save_rounded
+                            : Icons.add_location_alt_rounded,
+                        size: 18,
+                      ),
+                      label: Text(editing ? 'Save Changes' : 'Add Location'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
