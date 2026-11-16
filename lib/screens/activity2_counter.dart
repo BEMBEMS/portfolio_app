@@ -26,9 +26,12 @@ class _Activity2CounterState extends State<Activity2Counter> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Counter Module',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: theme.textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -45,7 +48,7 @@ class _Activity2CounterState extends State<Activity2Counter> {
                   Text(
                     'Local State Counter',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
+                      color: theme.textColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -53,7 +56,7 @@ class _Activity2CounterState extends State<Activity2Counter> {
                   Text(
                     'This screen uses StatefulWidget for local state.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.95),
+                      color: theme.textColor.withValues(alpha: 0.95),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -152,6 +155,8 @@ class _CounterButtonState extends State<_CounterButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -185,7 +190,7 @@ class _CounterButtonState extends State<_CounterButton> {
         Text(
           widget.label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.white,
+            color: theme.textColor,
             fontWeight: FontWeight.w600,
           ),
         ),

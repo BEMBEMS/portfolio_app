@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import '../providers/name_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/glass_card.dart';
@@ -24,13 +25,17 @@ class _Activity1ProfileState extends State<Activity1Profile> {
   @override
   Widget build(BuildContext context) {
     final nameProvider = Provider.of<NameProvider>(context);
+    final theme = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Student Information',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: theme.textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -80,7 +85,7 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                       nameProvider.userName,
                       key: ValueKey(nameProvider.userName),
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
+                        color: theme.textColor,
                         fontWeight: FontWeight.bold,
                         shadows: const [
                           Shadow(
@@ -96,7 +101,7 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                   Text(
                     'Student - Flutter Portfolio',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.95),
+                      color: theme.textColor.withValues(alpha: 0.95),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -105,10 +110,10 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Update Name',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: theme.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -119,22 +124,23 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                               Expanded(
                                 child: TextField(
                                   controller: _nameController,
-                                  style: const TextStyle(color: Colors.white),
+                                  style: TextStyle(color: theme.textColor),
                                   decoration: InputDecoration(
                                     hintText: 'Enter your name',
-                                    hintStyle: const TextStyle(color: Colors.white54),
+                                    hintStyle:
+                                        TextStyle(color: theme.mutedTextColor),
                                     filled: true,
-                                    fillColor: Colors.white.withValues(alpha: 0.12),
+                                    fillColor: theme.textColor
+                                        .withValues(alpha: 0.12),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.white.withValues(alpha: 0.2),
-                                      ),
+                                      borderSide:
+                                          BorderSide(color: theme.borderColor),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                        color: Colors.white70,
+                                      borderSide: BorderSide(
+                                        color: theme.accentColor,
                                       ),
                                     ),
                                   ),
@@ -172,14 +178,15 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                                 colors: [Colors.blue, Colors.lightBlueAccent],
                               ),
                             ),
-                            title: const Text('Email',
+                            title: Text('Email',
                                 style: TextStyle(
-                                    color: Colors.white,
+                                    color: theme.textColor,
                                     fontWeight: FontWeight.w600)),
-                            subtitle: const Text('student@example.com',
-                                style: TextStyle(color: Colors.white70)),
+                            subtitle: Text('student@example.com',
+                                style: TextStyle(
+                                    color: theme.secondaryTextColor)),
                           ),
-                          const Divider(color: Colors.white24, height: 1),
+                          Divider(color: theme.dividerColor, height: 1),
                           ListTile(
                             leading: _IconBadge(
                               icon: Icons.school,
@@ -187,14 +194,15 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                                 colors: [Colors.orange, Colors.deepOrange],
                               ),
                             ),
-                            title: const Text('Course',
+                            title: Text('Course',
                                 style: TextStyle(
-                                    color: Colors.white,
+                                    color: theme.textColor,
                                     fontWeight: FontWeight.w600)),
-                            subtitle: const Text('Flutter Development',
-                                style: TextStyle(color: Colors.white70)),
+                            subtitle: Text('Flutter Development',
+                                style: TextStyle(
+                                    color: theme.secondaryTextColor)),
                           ),
-                          const Divider(color: Colors.white24, height: 1),
+                          Divider(color: theme.dividerColor, height: 1),
                           ListTile(
                             leading: _IconBadge(
                               icon: Icons.star,
@@ -202,13 +210,14 @@ class _Activity1ProfileState extends State<Activity1Profile> {
                                 colors: [Colors.purple, Colors.pink],
                               ),
                             ),
-                            title: const Text('Activity',
+                            title: Text('Activity',
                                 style: TextStyle(
-                                    color: Colors.white,
+                                    color: theme.textColor,
                                     fontWeight: FontWeight.w600)),
-                            subtitle: const Text(
+                            subtitle: Text(
                                 'Portfolio & State Management',
-                                style: TextStyle(color: Colors.white70)),
+                                style: TextStyle(
+                                    color: theme.secondaryTextColor)),
                           ),
                         ],
                       ),

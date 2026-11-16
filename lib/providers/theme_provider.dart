@@ -13,15 +13,25 @@ class ThemeProvider extends ChangeNotifier {
       _isDarkMode ? _darkGradientBottom : _lightGradientBottom;
   Color get accentColor => _isDarkMode ? _darkAccent : _lightAccent;
 
+  Color get textColor => _isDarkMode ? Colors.white : const Color(0xFF1B1B1B);
+  Color get secondaryTextColor =>
+      _isDarkMode ? Colors.white70 : const Color(0xFF4B4B4B);
+  Color get mutedTextColor =>
+      _isDarkMode ? Colors.white54 : const Color(0xFF717171);
+  Color get dividerColor =>
+      _isDarkMode ? Colors.white24 : const Color(0xFFD9D9D9);
+  Color get borderColor =>
+      _isDarkMode ? Colors.white.withValues(alpha: 0.2) : const Color(0xFFDDDDDD);
+
   void toggleTheme() {
     _isDarkMode = !_isDarkMode;
     notifyListeners();
   }
 
-  static const Color _lightGradientTop = Color(0xFF7F00FF);
-  static const Color _lightGradientBottom = Color(0xFFE100FF);
-  static const Color _darkGradientTop = Color(0xFF1A237E);
-  static const Color _darkGradientBottom = Color(0xFF6A1B9A);
+  static const Color _lightGradientTop = Color(0xFFF2F2F2);
+  static const Color _lightGradientBottom = Color(0xFFF2F2F2);
+  static const Color _darkGradientTop = Color(0xFF0A0A0A);
+  static const Color _darkGradientBottom = Color(0xFF1A1A1A);
   static const Color _lightAccent = Color(0xFFF57C00);
   static const Color _darkAccent = Color(0xFFFFB74D);
 
