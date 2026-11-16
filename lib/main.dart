@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'providers/geofence_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/name_provider.dart';
+import 'providers/mesh_provider.dart';
 import 'screens/home_dashboard.dart';
 
 Future<void> main() async {
@@ -19,6 +20,7 @@ Future<void> main() async {
         providers: [
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
           ChangeNotifierProvider(create: (_) => NameProvider()),
+          ChangeNotifierProvider(create: (_) => MeshProvider()),
           ChangeNotifierProvider<GeofenceProvider>.value(
             value: geofenceProvider,
           ),

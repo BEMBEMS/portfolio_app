@@ -5,6 +5,7 @@ import '../providers/theme_provider.dart';
 class CustomCard extends StatefulWidget {
   final String title;
   final String subtitle;
+  final String? activityLabel;
   final IconData icon;
   final VoidCallback? onTap;
 
@@ -12,6 +13,7 @@ class CustomCard extends StatefulWidget {
     super.key,
     required this.title,
     required this.subtitle,
+    this.activityLabel,
     required this.icon,
     this.onTap,
   });
@@ -76,22 +78,71 @@ class _CustomCardState extends State<CustomCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.title,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: theme.textColor,
-                            fontWeight: FontWeight.bold,
+                        if (widget.activityLabel != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.accentColor.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: theme.accentColor.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                widget.activityLabel!,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  height: 1.15,
+                                  letterSpacing: 0.9,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.textColor,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.subtitle,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: theme.textColor.withValues(alpha: 0.9),
+                          const SizedBox(height: 6),
+                          Text(
+                            widget.title,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textColor.withValues(alpha: 0.8),
+                            ),
                           ),
-                        ),
+                          if (widget.subtitle.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.subtitle,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: theme.mutedTextColor,
+                              ),
+                            ),
+                          ],
+                        ] else ...[
+                          Text(
+                            widget.title,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: theme.textColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.subtitle,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: theme.textColor.withValues(alpha: 0.9),
+                                ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

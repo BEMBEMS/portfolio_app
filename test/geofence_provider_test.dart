@@ -270,7 +270,10 @@ void main() {
   });
 
   test('serializes and restores a location', () {
-    final original = defaultGeofenceLandmarks.first.copyWith(isPinned: true);
+    final original = defaultGeofenceLandmarks.first.copyWith(
+      isPinned: true,
+      imagePath: '/tmp/geofence_images/home.jpg',
+    );
 
     final restored = CustomLandmark.fromJson(original.toJson());
 
@@ -285,5 +288,32 @@ void main() {
     expect(restored.icon.codePoint, original.icon.codePoint);
     expect(restored.color.toARGB32(), original.color.toARGB32());
     expect(restored.isPinned, isTrue);
+    expect(restored.imagePath, original.imagePath);
+    expect(restored.hasImage, isTrue);
+  });
+
+  test('persists the uploaded image reference with the location', () async {
+    final preferences = await SharedPreferences.getInstance();
+    final provider = await createProvider(preferences: preferences);
+    final target = provider.locations.first;
+    final withImage = target.copyWith(
+      imagePath: '/tmp/geofence_images/saved.jpg',
+    );
+
+    await provider.updateLocation(target.id, withImage);
+
+    final encoded =
+        jsonDecode(preferences.getString(GeofenceProvider.storageKey)!)
+            as List<dynamic>;
+    final saved = encoded.whereType<Map>().firstWhere(
+      (entry) => entry['id'] == target.id,
+    );
+    expect(saved['imagePath'], '/tmp/geofence_images/saved.jpg');
+
+    final reloaded = await createProvider(preferences: preferences);
+    final reloadedTarget = reloaded.locations.firstWhere(
+      (location) => location.id == target.id,
+    );
+    expect(reloadedTarget.imagePath, '/tmp/geofence_images/saved.jpg');
   });
 }

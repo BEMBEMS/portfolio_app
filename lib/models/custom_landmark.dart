@@ -33,6 +33,7 @@ class CustomLandmark {
   final IconData icon;
   final Color color;
   final bool isPinned;
+  final String? imagePath;
 
   const CustomLandmark({
     required this.id,
@@ -45,9 +46,12 @@ class CustomLandmark {
     required this.icon,
     required this.color,
     this.isPinned = false,
+    this.imagePath,
   });
 
   String get displayAddress => address.trim().isEmpty ? name : address;
+
+  bool get hasImage => imagePath != null && imagePath!.trim().isNotEmpty;
 
   CustomLandmark copyWith({
     String? id,
@@ -60,6 +64,7 @@ class CustomLandmark {
     IconData? icon,
     Color? color,
     bool? isPinned,
+    String? imagePath,
   }) {
     return CustomLandmark(
       id: id ?? this.id,
@@ -72,6 +77,7 @@ class CustomLandmark {
       icon: icon ?? this.icon,
       color: color ?? this.color,
       isPinned: isPinned ?? this.isPinned,
+      imagePath: imagePath ?? this.imagePath,
     );
   }
 
@@ -88,6 +94,7 @@ class CustomLandmark {
       'iconCodePoint': icon.codePoint,
       'color': color.toARGB32(),
       'isPinned': isPinned,
+      'imagePath': imagePath,
     };
   }
 
@@ -114,6 +121,9 @@ class CustomLandmark {
       icon: geofenceIconCatalog[iconCodePoint] ?? Icons.place_rounded,
       color: Color(colorValue),
       isPinned: json['isPinned'] as bool? ?? false,
+      imagePath: (json['imagePath'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : (json['imagePath'] as String).trim(),
     );
   }
 }

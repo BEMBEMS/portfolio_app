@@ -25,8 +25,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Portfolio Dashboard'), findsOneWidget);
-    expect(find.text('Student Information'), findsOneWidget);
+    expect(find.byIcon(Icons.account_circle), findsOneWidget);
+    expect(find.text('ACTIVITY 2'), findsOneWidget);
     expect(find.text('Counter Module'), findsOneWidget);
-    expect(find.text('Network Diagnostics'), findsOneWidget);
+    expect(find.text('ACTIVITY 4'), findsOneWidget);
+    expect(find.text('Network Diagnostic'), findsOneWidget);
+    expect(find.text('MIDTERM REQUIREMENTS'), findsOneWidget);
+    expect(find.text('Geofence Map'), findsOneWidget);
   });
 }

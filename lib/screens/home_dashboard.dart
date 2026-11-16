@@ -10,6 +10,7 @@ import 'activity2_counter.dart';
 import 'activity5_geofence_map.dart';
 import 'network_diagnostic_dashboard.dart';
 import 'network_monitor_screen.dart';
+import 'mesh_chat_screen.dart';
 import 'settings_screen.dart';
 
 class HomeDashboard extends StatelessWidget {
@@ -34,6 +35,16 @@ class HomeDashboard extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: Icon(Icons.account_circle, color: themeProvider.textColor),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const Activity1Profile()),
+              );
+            },
+            tooltip: 'Activity 1 – Student Information',
+          ),
           IconButton(
             icon: Icon(
               themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
@@ -76,32 +87,12 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   _FadeSlide(
-                    delay: 3,
+                    delay: 2,
                     child: Row(
                       children: [
                         Expanded(
                           child: CustomCard(
-                            title: 'Student Information',
-                            subtitle: 'Profile Screen',
-                            icon: Icons.person,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const Activity1Profile(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _FadeSlide(
-                    delay: 4,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: CustomCard(
+                            activityLabel: 'ACTIVITY 2',
                             title: 'Counter Module',
                             subtitle: 'Counter with State',
                             icon: Icons.calculate,
@@ -118,11 +109,12 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 5,
+                    delay: 3,
                     child: Row(
                       children: [
                         Expanded(
                           child: CustomCard(
+                            activityLabel: 'ACTIVITY 3',
                             title: 'Network Monitor',
                             subtitle: 'Real-time connection status',
                             icon: Icons.network_check,
@@ -139,12 +131,13 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 6,
+                    delay: 4,
                     child: Row(
                       children: [
                         Expanded(
                           child: CustomCard(
-                            title: 'Network Diagnostics',
+                            activityLabel: 'ACTIVITY 4',
+                            title: 'Network Diagnostic',
                             subtitle: 'Ping & speed test with health tier',
                             icon: Icons.speed,
                             onTap: () => _openDashboard(context),
@@ -155,19 +148,19 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 8,
+                    delay: 5,
                     child: Row(
                       children: [
                         Expanded(
                           child: CustomCard(
-                            title: 'Geofence Map',
-                            subtitle:
-                                'Real OSM map of Del Monte with hidden markers',
-                            icon: Icons.my_location,
+                            activityLabel: 'ACTIVITY 5',
+                            title: 'Local Mesh Chat',
+                            subtitle: 'Offline peer-to-peer Bluetooth chat',
+                            icon: Icons.hub_rounded,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const Activity5GeofenceMap(),
+                                builder: (_) => const MeshChatScreen(),
                               ),
                             ),
                           ),
@@ -177,18 +170,20 @@ class HomeDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _FadeSlide(
-                    delay: 7,
+                    delay: 6,
                     child: Row(
                       children: [
                         Expanded(
                           child: CustomCard(
-                            title: 'Settings',
-                            subtitle: 'App configuration',
-                            icon: Icons.tune,
+                            activityLabel: 'MIDTERM REQUIREMENTS',
+                            title: 'Geofence Map',
+                            subtitle:
+                                'Real OSM map of Del Monte with hidden markers',
+                            icon: Icons.my_location,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const SettingsScreen(),
+                                builder: (_) => const Activity5GeofenceMap(),
                               ),
                             ),
                           ),

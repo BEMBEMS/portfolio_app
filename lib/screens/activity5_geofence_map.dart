@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 
 import '../models/custom_landmark.dart';
 import '../providers/geofence_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/location_image_storage.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/location_image_lightbox.dart';
+import '../widgets/location_image_view.dart';
 
 class Activity5GeofenceMap extends StatefulWidget {
   const Activity5GeofenceMap({super.key});
@@ -282,6 +287,10 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
       final updated = await provider.updateLocation(existing.id, result);
       if (!mounted) return;
       if (updated) {
+        if (existing.hasImage && existing.imagePath != result.imagePath) {
+          await LocationImageStorage.delete(existing.imagePath);
+        }
+        if (!mounted) return;
         _mapController.move(result.position, _mapController.camera.zoom);
         _showSnack('${result.name} updated.');
       }
@@ -372,15 +381,19 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
 
     if (replacedId == null || !mounted) return;
 
-    final replacedName = provider.locations
-        .firstWhere((location) => location.id == replacedId)
-        .name;
+    final previous = provider.locations.firstWhere(
+      (location) => location.id == replacedId,
+    );
 
     final replaced = await provider.replaceLocation(replacedId, newLocation);
     if (!mounted) return;
     if (replaced) {
+      if (previous.hasImage && previous.imagePath != newLocation.imagePath) {
+        await LocationImageStorage.delete(previous.imagePath);
+      }
+      if (!mounted) return;
       _mapController.move(newLocation.position, _mapController.camera.zoom);
-      _showSnack('${newLocation.name} replaced $replacedName.');
+      _showSnack('${newLocation.name} replaced ${previous.name}.');
     }
   }
 
@@ -417,6 +430,10 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
     final removed = await provider.removeLocation(landmark.id);
     if (!mounted) return;
     if (removed) {
+      if (landmark.hasImage) {
+        await LocationImageStorage.delete(landmark.imagePath);
+      }
+      if (!mounted) return;
       _insideIds.remove(landmark.id);
       _showSnack('${landmark.name} deleted.');
     }
@@ -455,6 +472,70 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (landmark.hasImage) ...[
+                  LayoutBuilder(
+                    builder: (imageContext, constraints) {
+                      final height = (constraints.maxWidth * 0.56)
+                          .clamp(170.0, 280.0)
+                          .toDouble();
+
+                      return Semantics(
+                        button: true,
+                        label: 'View ${landmark.name} image full screen',
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => showLocationImageLightbox(
+                            imageContext,
+                            reference: landmark.imagePath,
+                            title: landmark.name,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: height,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ColoredBox(
+                                    color: theme.isDarkMode
+                                        ? const Color(0xFF0E0E0E)
+                                        : theme.textColor.withValues(
+                                            alpha: 0.05,
+                                          ),
+                                  ),
+                                  LocationImageView(
+                                    reference: landmark.imagePath,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(7),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.open_in_full_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 Row(
                   children: [
                     Container(
@@ -1444,15 +1525,27 @@ class _Activity5GeofenceMapState extends State<Activity5GeofenceMap>
                       Container(
                         width: 40,
                         height: 40,
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: landmark.color.withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(
-                          landmark.icon,
-                          color: landmark.color,
-                          size: 22,
-                        ),
+                        child: landmark.hasImage
+                            ? LocationImageView(
+                                reference: landmark.imagePath,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.center,
+                                placeholder: Icon(
+                                  landmark.icon,
+                                  color: landmark.color,
+                                  size: 22,
+                                ),
+                              )
+                            : Icon(
+                                landmark.icon,
+                                color: landmark.color,
+                                size: 22,
+                              ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1588,6 +1681,7 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
   ];
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final ImagePicker _imagePicker = ImagePicker();
   late final TextEditingController _nameController;
   late final TextEditingController _addressController;
   late final TextEditingController _categoryController;
@@ -1597,6 +1691,11 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
   late double _radius;
   late IconData _icon;
   late Color _color;
+  XFile? _pickedImage;
+  Uint8List? _pickedImageBytes;
+  String? _imageError;
+  bool _pickingImage = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -1652,16 +1751,82 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
     return null;
   }
 
-  void _submit() {
+  Future<void> _pickImage() async {
+    if (_pickingImage || _saving) return;
+
+    setState(() {
+      _pickingImage = true;
+      _imageError = null;
+    });
+
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+
+      setState(() {
+        _pickedImage = picked;
+        _pickedImageBytes = bytes;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _imageError = 'Could not open the selected image.');
+    } finally {
+      if (mounted) setState(() => _pickingImage = false);
+    }
+  }
+
+  Future<void> _submit() async {
     final form = _formKey.currentState;
-    if (form == null || !form.validate()) return;
+    if (form == null || !form.validate() || _saving) return;
 
     final existing = widget.existing;
+    final editing = existing != null;
+    if (!editing && _pickedImage == null) {
+      setState(() => _imageError = 'Upload a location image to continue.');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _imageError = null;
+    });
+
     final category = _categoryController.text.trim();
     final name = _nameController.text.trim();
     final address = _addressController.text.trim();
+    final id =
+        existing?.id ?? 'location_${DateTime.now().microsecondsSinceEpoch}';
+
+    var imagePath = existing?.imagePath;
+    final pickedImage = _pickedImage;
+    if (pickedImage != null) {
+      try {
+        imagePath = await LocationImageStorage.save(
+          pickedImage,
+          locationId: id,
+        );
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _saving = false;
+          _imageError = 'Could not save the image. Please try again.';
+        });
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
     final location = CustomLandmark(
-      id: existing?.id ?? 'location_${DateTime.now().microsecondsSinceEpoch}',
+      id: id,
       name: name,
       address: address.isEmpty ? name : address,
       category: category.isEmpty ? 'Custom' : category,
@@ -1673,6 +1838,7 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
       radiusMeters: _radius,
       icon: _icon,
       color: _color,
+      imagePath: imagePath,
     );
 
     Navigator.of(context).pop(location);
@@ -1698,6 +1864,173 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
           fontSize: 12.5,
         ),
       ),
+    );
+  }
+
+  void _openImagePreview(String? existingImage) {
+    if (_pickedImageBytes == null && existingImage == null) return;
+
+    final name = _nameController.text.trim();
+    showLocationImageLightbox(
+      context,
+      reference: existingImage,
+      bytes: _pickedImageBytes,
+      title: name.isEmpty ? 'Location image' : name,
+    );
+  }
+
+  Widget _buildImageField(ThemeProvider theme, bool editing) {
+    final existingImage = widget.existing?.imagePath;
+    final hasPreview = _pickedImageBytes != null || existingImage != null;
+    final errorColor = const Color(0xFFE53935);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _sectionLabel(
+                editing ? 'Location image' : 'Upload Location Image',
+                theme,
+              ),
+            ),
+            if (!editing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Required',
+                  style: TextStyle(
+                    color: theme.accentColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final previewHeight = (constraints.maxWidth * 0.52)
+                .clamp(160.0, 240.0)
+                .toDouble();
+
+            return Container(
+              width: double.infinity,
+              height: previewHeight,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: theme.textColor.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _imageError == null ? theme.borderColor : errorColor,
+                  width: _imageError == null ? 1 : 1.4,
+                ),
+              ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: hasPreview
+                    ? () => _openImagePreview(existingImage)
+                    : null,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (_pickedImageBytes != null)
+                      Image.memory(
+                        _pickedImageBytes!,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                      )
+                    else if (existingImage != null)
+                      LocationImageView(
+                        reference: existingImage,
+                        fit: BoxFit.contain,
+                      )
+                    else
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.image_outlined,
+                            size: 34,
+                            color: theme.mutedTextColor,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No image selected',
+                            style: TextStyle(
+                              color: theme.mutedTextColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (hasPreview)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.open_in_full_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _pickingImage || _saving ? null : _pickImage,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.accentColor,
+              side: BorderSide(
+                color: theme.accentColor.withValues(alpha: 0.55),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: _pickingImage
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.photo_library_outlined, size: 18),
+            label: Text(
+              hasPreview ? 'Change image' : 'Choose from gallery or files',
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _imageError ??
+              'The image is saved with this location and shown when the '
+                  'pin is opened.',
+          style: TextStyle(
+            color: _imageError == null ? theme.mutedTextColor : errorColor,
+            fontSize: 11,
+            height: 1.4,
+            fontWeight: _imageError == null
+                ? FontWeight.normal
+                : FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1807,6 +2140,8 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
                     textCapitalization: TextCapitalization.sentences,
                     decoration: _decoration('Description'),
                   ),
+                  const SizedBox(height: 16),
+                  _buildImageField(theme, editing),
                   const SizedBox(height: 16),
                   _sectionLabel('Coordinates', theme),
                   Row(
@@ -1932,7 +2267,7 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: _submit,
+                      onPressed: _saving ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.accentColor,
                         foregroundColor: Colors.white,
@@ -1941,13 +2276,28 @@ class _LocationFormSheetState extends State<_LocationFormSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      icon: Icon(
-                        editing
-                            ? Icons.save_rounded
-                            : Icons.add_location_alt_rounded,
-                        size: 18,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              editing
+                                  ? Icons.save_rounded
+                                  : Icons.add_location_alt_rounded,
+                              size: 18,
+                            ),
+                      label: Text(
+                        _saving
+                            ? 'Saving...'
+                            : editing
+                            ? 'Save Changes'
+                            : 'Add Location',
                       ),
-                      label: Text(editing ? 'Save Changes' : 'Add Location'),
                     ),
                   ),
                 ],
